@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { cn, fmtMs } from "@/lib/utils";
 import { Badge } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 
 const STATUS: Record<ToolCallRecord["status"], { label: string; tone: "neutral" | "accent" | "success" | "warning" | "danger" }> = {
   running: { label: "en cours", tone: "accent" },
@@ -29,19 +30,19 @@ function ToolCallRow({ call }: { call: ToolCallRecord }) {
           <span className="font-mono">{call.tool}</span>
         </span>
         <Badge tone={st.tone} className="ml-auto">
-          {st.label}
+          {t(st.label)}
         </Badge>
         {call.durationMs !== undefined ? <span className="text-[11px] text-fg-subtle">{fmtMs(call.durationMs)}</span> : null}
       </button>
       {open ? (
         <div className="space-y-2 border-t border-border px-2.5 py-2">
           <div>
-            <div className="mb-0.5 text-[11px] text-fg-subtle">Arguments</div>
+            <div className="mb-0.5 text-[11px] text-fg-subtle">{t("Arguments")}</div>
             <pre className="max-h-40 overflow-auto rounded bg-bg p-2 font-mono text-[11px]">{JSON.stringify(call.args, null, 2)}</pre>
           </div>
           {call.resultPreview ? (
             <div>
-              <div className="mb-0.5 text-[11px] text-fg-subtle">Résultat (extrait transmis au modèle)</div>
+              <div className="mb-0.5 text-[11px] text-fg-subtle">{t("Résultat (extrait transmis au modèle)")}</div>
               <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-bg p-2 font-mono text-[11px]">{call.resultPreview}</pre>
             </div>
           ) : null}
@@ -75,7 +76,7 @@ export function GlobalApprovals() {
   if (!orphan.length) return null;
   return (
     <div className="fixed bottom-4 right-4 z-40 w-[420px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface p-3 shadow-2xl">
-      <div className="mb-2 text-xs font-medium text-fg-muted">Autorisations en attente (travail en arrière-plan)</div>
+      <div className="mb-2 text-xs font-medium text-fg-muted">{t("Autorisations en attente (travail en arrière-plan)")}</div>
       <ApprovalCards approvals={orphan} global />
     </div>
   );
@@ -109,19 +110,19 @@ export function ApprovalCards({ approvals, global }: { approvals: ToolApprovalRe
           <div className="flex items-center gap-2 text-[13px]">
             <ShieldAlert className="size-4 shrink-0 text-warning" />
             <span>
-              <b>{a.agentName ?? "Un agent"}</b> veut exécuter un outil sensible : <span className="text-fg-muted">{a.serverName} › </span>
+              <b>{a.agentName ?? t("Un agent")}</b> {t("veut exécuter un outil sensible :")} <span className="text-fg-muted">{a.serverName} › </span>
               <span className="font-mono">{a.tool}</span>
             </span>
           </div>
           <pre className="mt-2 max-h-40 overflow-auto rounded bg-bg p-2 font-mono text-[11px]">{JSON.stringify(a.args, null, 2)}</pre>
           <div className="mt-2 flex gap-2">
             <Button size="sm" variant="primary" onClick={() => decide(a.approvalId, true)} loading={busy === a.approvalId}>
-              <Check /> Autoriser
+              <Check /> {t("Autoriser")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => decide(a.approvalId, false)} disabled={busy === a.approvalId}>
-              <X /> Refuser
+              <X /> {t("Refuser")}
             </Button>
-            <span className="ml-auto self-center text-[11px] text-fg-subtle">Sans réponse sous 10 min, l'appel est refusé.</span>
+            <span className="ml-auto self-center text-[11px] text-fg-subtle">{t("Sans réponse sous 10 min, l'appel est refusé.")}</span>
           </div>
         </div>
       ))}

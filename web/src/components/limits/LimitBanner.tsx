@@ -7,6 +7,7 @@ import { qk, useLimitState } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { LimitReportDialog, windowSentence } from "./LimitReport";
+import { locale, t } from "@/i18n";
 
 function dismissedKey(k: string) {
   try {
@@ -30,8 +31,8 @@ export function LimitBanner() {
   const resumeAll = useMutation({
     mutationFn: () => api.post<{ started: boolean; count?: number; reason?: string }>("/limits/paused/resume-all"),
     onSuccess: (r) => {
-      if (r.started) toast.success(`Reprise de ${r.count} travail(aux) en arrière-plan.`);
-      else toast(r.reason ?? "Rien à reprendre");
+      if (r.started) toast.success(t("Reprise de {count} travail(aux) en arrière-plan.", { count: r.count }));
+      else toast(r.reason ?? t("Rien à reprendre"));
       void qc.invalidateQueries({ queryKey: qk.limits });
       void qc.invalidateQueries({ queryKey: qk.paused });
       setTimeout(() => void qc.invalidateQueries(), 5000);
@@ -48,7 +49,7 @@ export function LimitBanner() {
 
   const key = `${kind}-${state.resumeAt ?? ""}-${warnWindows.map((w) => w.resetsAt).join(",")}`;
   if (kind === "warning" && dismissedKey(key)) return null;
-  const resumeTime = state.resumeAt ? new Date(state.resumeAt).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : null;
+  const resumeTime = state.resumeAt ? new Date(state.resumeAt).toLocaleString(locale(), { weekday: "short", hour: "2-digit", minute: "2-digit" }) : null;
 
   return (
     <>
@@ -62,31 +63,31 @@ export function LimitBanner() {
         <span className="min-w-0 flex-1">
           {kind === "ready" ? (
             <>
-              <b>Limites Claude réinitialisées.</b> {state.readyCount} travail(aux) mis en pause peuvent reprendre. Voulez-vous continuer ?
+              <b>{t("Limites Claude réinitialisées.")}</b> {t("{count} travail(aux) mis en pause peuvent reprendre. Voulez-vous continuer ?", { count: state.readyCount })}
             </>
           ) : kind === "paused" ? (
             <>
-              <b>Claude en pause</b> ({state.pauseReason}). Les nouveaux appels Claude sont retenus{resumeTime ? ` jusqu'à ${resumeTime}` : ""}
-              {state.pausedCount ? ` · ${state.pausedCount} travail(aux) en pause` : ""}. Les autres fournisseurs restent utilisables.
+              <b>{t("Claude en pause")}</b> ({state.pauseReason}). {resumeTime ? t("Les nouveaux appels Claude sont retenus jusqu'à {time}", { time: resumeTime }) : t("Les nouveaux appels Claude sont retenus")}
+              {state.pausedCount ? ` · ${t("{count} travail(aux) en pause", { count: state.pausedCount })}` : ""}. {t("Les autres fournisseurs restent utilisables.")}
             </>
           ) : (
             <>
-              <b>Limite Claude proche.</b> {warnWindows.map((w) => windowSentence(w, state.pauseAt)).join(" — ")}
+              <b>{t("Limite Claude proche.")}</b> {warnWindows.map((w) => windowSentence(w, state.pauseAt)).join(" — ")}
             </>
           )}
         </span>
         <div className="flex items-center gap-1.5">
           {kind === "ready" ? (
             <Button size="sm" variant="primary" onClick={() => resumeAll.mutate()} loading={resumeAll.isPending}>
-              Tout reprendre
+              {t("Tout reprendre")}
             </Button>
           ) : null}
           <Button size="sm" variant="secondary" onClick={() => setReport(true)}>
-            {kind === "ready" ? "Choisir" : "Rapport"}
+            {kind === "ready" ? t("Choisir") : t("Rapport")}
           </Button>
           {kind === "warning" ? (
             <button
-              aria-label="Masquer"
+              aria-label={t("Masquer")}
               className="rounded p-1 text-fg-subtle hover:bg-surface-2 hover:text-fg"
               onClick={() => {
                 try {

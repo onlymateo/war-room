@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState, Page, PageHeader, Progress, Skeleton, Tooltip } from "@/components/ui/primitives";
 import { AgentAvatar, AUTONOMY_LABEL, STRATEGY_LABEL, modelLabel } from "@/components/domain";
 import { useDeleteRoomDialog } from "./deletion";
+import { t } from "@/i18n";
 
 export default function WarRoomsPage() {
   const rooms = useWarRooms();
@@ -16,11 +17,11 @@ export default function WarRoomsPage() {
       <PageHeader
         icon={<Swords />}
         title="War Rooms"
-        description="Un environnement de travail par projet : un orchestrateur, des agents spécialisés, une conversation collective."
+        description={t("Un environnement de travail par projet : un orchestrateur, des agents spécialisés, une conversation collective.")}
         actions={
           <Link to="/warrooms/new">
             <Button variant="primary">
-              <Plus /> Nouvelle War Room
+              <Plus /> {t("Nouvelle War Room")}
             </Button>
           </Link>
         }
@@ -33,12 +34,12 @@ export default function WarRoomsPage() {
       ) : !rooms.data?.length ? (
         <EmptyState
           icon={<Swords />}
-          title="Aucune War Room"
-          description="Créez une War Room, donnez un brief à votre orchestrateur : il proposera une équipe d'agents, des tâches et les Skills utiles."
+          title={t("Aucune War Room")}
+          description={t("Créez une War Room, donnez un brief à votre orchestrateur : il proposera une équipe d'agents, des tâches et les Skills utiles.")}
           action={
             <Link to="/warrooms/new">
               <Button variant="primary">
-                <Plus /> Créer la première
+                <Plus /> {t("Créer la première")}
               </Button>
             </Link>
           }
@@ -51,15 +52,15 @@ export default function WarRoomsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate text-[14px] font-semibold">{r.name}</h3>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-fg-muted">{r.description || r.objective || "Pas de description"}</p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-fg-muted">{r.description || r.objective || t("Pas de description")}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {r.status !== "active" ? <Badge tone="warning">{r.status}</Badge> : null}
-                    <Tooltip content="Supprimer la War Room">
+                    <Tooltip content={t("Supprimer la War Room")}>
                       <Button
                         variant="danger-ghost"
                         size="icon-sm"
-                        aria-label={`Supprimer ${r.name}`}
+                        aria-label={t("Supprimer {name}", { name: r.name })}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -85,15 +86,15 @@ export default function WarRoomsPage() {
                     <Users /> {Math.max(0, r.agentCount - 1)} agents
                   </Badge>
                   <Badge>
-                    <ListTodo /> {r.openTasks} tâches ouvertes
+                    <ListTodo /> {t("{count} tâches ouvertes", { count: r.openTasks })}
                   </Badge>
-                  <Badge tone="outline">{AUTONOMY_LABEL[r.autonomy]}</Badge>
-                  <Badge tone="outline">{STRATEGY_LABEL[r.costStrategy]}</Badge>
+                  <Badge tone="outline">{t(AUTONOMY_LABEL[r.autonomy])}</Badge>
+                  <Badge tone="outline">{t(STRATEGY_LABEL[r.costStrategy])}</Badge>
                 </div>
                 <div className="mt-4 space-y-1">
                   <div className="flex justify-between text-[11px] text-fg-subtle">
-                    <span>Dépense API {fmtUsd(r.spentUsd)}{r.budgetUsd !== null ? ` / ${fmtUsd(r.budgetUsd)}` : ""}</span>
-                    <span>Mis à jour {fmtRelative(r.updatedAt)}</span>
+                    <span>{t("Dépense API {amount}", { amount: fmtUsd(r.spentUsd) })}{r.budgetUsd !== null ? ` / ${fmtUsd(r.budgetUsd)}` : ""}</span>
+                    <span>{t("Mis à jour {time}", { time: fmtRelative(r.updatedAt) })}</span>
                   </div>
                   {r.budgetUsd ? <Progress value={r.spentUsd / r.budgetUsd} tone={r.spentUsd / r.budgetUsd > 0.8 ? "danger" : "accent"} /> : null}
                 </div>

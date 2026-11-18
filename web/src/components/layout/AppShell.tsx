@@ -11,6 +11,7 @@ import { LimitReportDialog, WindowMeter } from "../limits/LimitReport";
 import { GlobalApprovals } from "@/features/chat/ToolCalls";
 import { Kbd, StatusDot, Tooltip } from "../ui/primitives";
 import { CommandPalette } from "./CommandPalette";
+import { t } from "@/i18n";
 
 export const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -95,7 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         : s.providers.configured > 0
           ? "ok"
           : "warning";
-  const displayName = (settings.data?.["user.displayName"] as string) || "Vous";
+  const displayName = (settings.data?.["user.displayName"] as string) || t("Vous");
 
   return (
     <div className="flex h-full">
@@ -110,7 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="text-[13px] font-semibold tracking-[0.12em]">WAR ROOM</div>
               <div className="flex items-center gap-1.5 text-[11px] text-fg-subtle">
                 <StatusDot status={systemState} className="size-1.5" />
-                {status.isError ? "API injoignable" : s ? `${s.providers.configured} fournisseur${s.providers.configured > 1 ? "s" : ""} connecté${s.providers.configured > 1 ? "s" : ""}` : "…"}
+                {status.isError ? t("API injoignable") : s ? t(s.providers.configured > 1 ? "{count} fournisseurs connectés" : "{count} fournisseur connecté", { count: s.providers.configured }) : "…"}
               </div>
             </div>
           ) : null}
@@ -122,12 +123,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             "mx-2 mt-3 flex h-8 items-center gap-2 rounded-md border border-border bg-surface-2 text-[13px] text-fg-subtle hover:text-fg",
             collapsed ? "justify-center px-0" : "px-2.5",
           )}
-          aria-label="Rechercher"
+          aria-label={t("Rechercher")}
         >
           <Search className="size-3.5" />
           {!collapsed ? (
             <>
-              <span className="flex-1 text-left">Rechercher…</span>
+              <span className="flex-1 text-left">{t("Rechercher…")}</span>
               <Kbd>Ctrl K</Kbd>
             </>
           ) : null}
@@ -156,8 +157,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="space-y-1 border-t border-border p-2">
           {!collapsed && limits.data && limits.data.windows.some((w) => w.utilization !== null || w.isReset) ? (
-            <button onClick={() => setQuotaReport(true)} className="block w-full space-y-1.5 rounded-md px-2.5 py-1.5 text-left hover:bg-surface-2" title="Rapport des limites Claude">
-              <div className="text-[11px] text-fg-subtle">Abonnement Claude</div>
+            <button onClick={() => setQuotaReport(true)} className="block w-full space-y-1.5 rounded-md px-2.5 py-1.5 text-left hover:bg-surface-2" title={t("Rapport des limites Claude")}>
+              <div className="text-[11px] text-fg-subtle">{t("Abonnement Claude")}</div>
               {limits.data.windows.map((w) => (
                 <WindowMeter key={w.key} w={w} pauseAt={limits.data!.pauseAt} compact />
               ))}
@@ -166,14 +167,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           {!collapsed && s ? (
             <div className="space-y-1 px-2.5 py-1.5 text-[11px] text-fg-subtle">
               <div className="flex items-center justify-between">
-                <span>Fournisseurs</span>
+                <span>{t("Fournisseurs")}</span>
                 <span className="flex items-center gap-1.5">
                   <StatusDot status={s.providers.error ? "error" : s.providers.ok ? "ok" : "unknown"} className="size-1.5" />
                   {s.providers.ok}/{s.providers.configured} OK
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Serveurs MCP</span>
+                <span>{t("Serveurs MCP")}</span>
                 <span className="flex items-center gap-1.5">
                   <StatusDot status={s.mcp.error ? "error" : s.mcp.connected ? "ok" : "unknown"} className="size-1.5" />
                   {s.mcp.connected}/{s.mcp.total}
@@ -186,13 +187,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               <CircleUser className="size-4 shrink-0" />
               {!collapsed ? <span className="truncate">{displayName}</span> : null}
             </NavLink>
-            <Tooltip content={theme.dark ? "Thème clair" : "Thème sombre"} side="right">
-              <button onClick={theme.toggle} className="flex size-8 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg" aria-label="Changer de thème">
+            <Tooltip content={theme.dark ? t("Thème clair") : t("Thème sombre")} side="right">
+              <button onClick={theme.toggle} className="flex size-8 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg" aria-label={t("Changer de thème")}>
                 {theme.dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
               </button>
             </Tooltip>
-            <Tooltip content={collapsed ? "Déplier (Ctrl B)" : "Replier (Ctrl B)"} side="right">
-              <button onClick={() => setCollapsed((v) => !v)} className="flex size-8 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg" aria-label="Replier la barre latérale">
+            <Tooltip content={collapsed ? t("Déplier (Ctrl B)") : t("Replier (Ctrl B)")} side="right">
+              <button onClick={() => setCollapsed((v) => !v)} className="flex size-8 items-center justify-center rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg" aria-label={t("Replier la barre latérale")}>
                 {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
               </button>
             </Tooltip>

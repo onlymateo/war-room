@@ -9,6 +9,7 @@ import { cn, fmtRelative } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Switch } from "@/components/ui/form";
 import { Badge, Card, Dialog, Page, PageHeader, Skeleton, StatusDot, Tooltip } from "@/components/ui/primitives";
+import { locale, t } from "@/i18n";
 
 const AUTH_LABEL: Record<string, { label: string; icon: React.ReactNode }> = {
   api_key: { label: "Clé API", icon: <KeyRound /> },
@@ -31,7 +32,7 @@ export default function ProvidersPage() {
       <PageHeader
         icon={<Cpu />}
         title="Models & Providers"
-        description="Connectez vos fournisseurs d'IA. Les clés sont chiffrées sur votre machine et ne sont jamais envoyées au navigateur."
+        description={t("Connectez vos fournisseurs d'IA. Les clés sont chiffrées sur votre machine et ne sont jamais envoyées au navigateur.")}
       />
       {providers.isLoading ? (
         <div className="grid gap-3 md:grid-cols-3">
@@ -42,7 +43,7 @@ export default function ProvidersPage() {
       ) : (
         <div className="space-y-8">
           <section className="space-y-3">
-            <h2 className="text-[13px] font-semibold">Connectés</h2>
+            <h2 className="text-[13px] font-semibold">{t("Connectés")}</h2>
             {connected.length ? (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {connected.map((p) => (
@@ -53,9 +54,9 @@ export default function ProvidersPage() {
               <Card className="flex items-start gap-3 p-4 text-[13px] text-fg-muted">
                 <Info className="mt-0.5 size-4 shrink-0 text-accent" />
                 <div>
-                  Aucun fournisseur connecté. Pour utiliser votre <b className="text-fg">abonnement Claude Pro/Max</b>, connectez
-                  « Claude Code » (il faut que la commande <code className="font-mono text-xs">claude</code> soit installée et connectée). Pour un
-                  usage gratuit et local, installez Ollama.
+                  {t("Aucun fournisseur connecté. Pour utiliser votre")} <b className="text-fg">{t("abonnement Claude Pro/Max")}</b>
+                  {t(", connectez « Claude Code » (il faut que la commande")} <code className="font-mono text-xs">claude</code>
+                  {t(" soit installée et connectée). Pour un usage gratuit et local, installez Ollama.")}
                 </div>
               </Card>
             )}
@@ -64,7 +65,7 @@ export default function ProvidersPage() {
           {current ? <ModelsTable provider={current} models={(models.data ?? []).filter((m) => m.providerId === current.id)} /> : null}
 
           <section className="space-y-3">
-            <h2 className="text-[13px] font-semibold">Disponibles</h2>
+            <h2 className="text-[13px] font-semibold">{t("Disponibles")}</h2>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {others.map((p) => (
                 <ProviderCard key={p.id} p={p} onConfigure={() => setEditing(p)} />
@@ -102,19 +103,19 @@ function ProviderCard({ p, active, onSelect, onConfigure }: { p: ProviderDTO; ac
             onConfigure();
           }}
         >
-          {p.configured ? "Configurer" : "Connecter"}
+          {p.configured ? t("Configurer") : t("Connecter")}
         </Button>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <Badge tone="outline">
-          {auth.icon} {auth.label}
+          {auth.icon} {t(auth.label)}
         </Badge>
-        {p.configured ? <Badge>{p.modelCount} modèles</Badge> : null}
-        {p.configured && !p.enabled ? <Badge tone="warning">Désactivé</Badge> : null}
+        {p.configured ? <Badge>{t("{n} modèles", { n: p.modelCount })}</Badge> : null}
+        {p.configured && !p.enabled ? <Badge tone="warning">{t("Désactivé")}</Badge> : null}
         {p.secretHint ? <Badge tone="neutral">{p.secretHint}</Badge> : null}
       </div>
       {p.lastError ? <p className="mt-2 line-clamp-3 text-xs text-danger">{p.lastError}</p> : null}
-      {p.lastCheckedAt && !p.lastError ? <p className="mt-2 text-[11px] text-fg-subtle">Vérifié {fmtRelative(p.lastCheckedAt)}</p> : null}
+      {p.lastCheckedAt && !p.lastError ? <p className="mt-2 text-[11px] text-fg-subtle">{t("Vérifié {when}", { when: fmtRelative(p.lastCheckedAt) })}</p> : null}
     </Card>
   );
 }
@@ -154,7 +155,7 @@ function ConfigureDialog({ provider, onClose }: { provider: ProviderDTO; onClose
       const result = await api.post<{ ok: boolean; message: string }>(`/providers/${provider.id}/test`);
       if (result.ok && !isCli) {
         const refresh = await api.post<{ added: number; total: number | null; error?: string }>(`/providers/${provider.id}/refresh-models`).catch(() => null);
-        if (refresh?.added) result.message += ` ${refresh.added} modèle(s) ajouté(s).`;
+        if (refresh?.added) result.message += ` ${t("{n} modèle(s) ajouté(s).", { n: refresh.added })}`;
       }
       return result;
     },
@@ -184,12 +185,12 @@ function ConfigureDialog({ provider, onClose }: { provider: ProviderDTO; onClose
       footer={
         <>
           {provider.configured ? (
-            <Button variant="danger-ghost" className="mr-auto" onClick={() => confirm("Retirer cette connexion et sa clé ?") && remove.mutate()}>
-              Déconnecter
+            <Button variant="danger-ghost" className="mr-auto" onClick={() => confirm(t("Retirer cette connexion et sa clé ?")) && remove.mutate()}>
+              {t("Déconnecter")}
             </Button>
           ) : null}
           <Button variant="secondary" onClick={() => test.mutate()} loading={test.isPending}>
-            <Plug /> {isCli ? "Enregistrer et tester (1 court message)" : "Enregistrer et tester"}
+            <Plug /> {isCli ? t("Enregistrer et tester (1 court message)") : t("Enregistrer et tester")}
           </Button>
           <Button
             variant="primary"
@@ -198,14 +199,14 @@ function ConfigureDialog({ provider, onClose }: { provider: ProviderDTO; onClose
             onClick={() =>
               save.mutate(undefined, {
                 onSuccess: () => {
-                  toast.success("Connexion enregistrée");
+                  toast.success(t("Connexion enregistrée"));
                   onClose();
                 },
                 onError: (err) => toast.error(err instanceof Error ? err.message : String(err)),
               })
             }
           >
-            Enregistrer
+            {t("Enregistrer")}
           </Button>
         </>
       }
@@ -213,44 +214,48 @@ function ConfigureDialog({ provider, onClose }: { provider: ProviderDTO; onClose
       <div className="space-y-4">
         <div className="space-y-2 rounded-lg border border-border bg-surface-2 p-3 text-xs text-fg-muted">
           <p>
-            <b className="text-fg">Accès : </b>
+            <b className="text-fg">{t("Accès : ")}</b>
             {provider.accessNotes}
           </p>
           <p>
-            <b className="text-fg">Abonnements : </b>
+            <b className="text-fg">{t("Abonnements : ")}</b>
             {provider.subscriptionNotes}
           </p>
           <a href={provider.docsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">
-            Documentation <ExternalLink className="size-3" />
+            {t("Documentation")} <ExternalLink className="size-3" />
           </a>
         </div>
 
         {provider.requiresSecret || provider.id === "custom-openai" ? (
           <Field
-            label="Clé API"
-            hint={provider.secretHint ? `Clé enregistrée (${provider.secretHint}). Laissez vide pour la conserver.` : "Stockée chiffrée (AES-256-GCM) dans data/, jamais renvoyée au navigateur."}
+            label={t("Clé API")}
+            hint={
+              provider.secretHint
+                ? t("Clé enregistrée ({hint}). Laissez vide pour la conserver.", { hint: provider.secretHint })
+                : t("Stockée chiffrée (AES-256-GCM) dans data/, jamais renvoyée au navigateur.")
+            }
           >
-            <Input type="password" autoComplete="off" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={provider.secretHint ? "••••••••" : "Collez votre clé"} />
+            <Input type="password" autoComplete="off" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={provider.secretHint ? "••••••••" : t("Collez votre clé")} />
           </Field>
         ) : null}
 
         {!isCli ? (
-          <Field label="URL de base" hint={provider.defaultBaseUrl ? `Par défaut : ${provider.defaultBaseUrl}` : "URL par défaut du SDK"}>
+          <Field label={t("URL de base")} hint={provider.defaultBaseUrl ? t("Par défaut : {url}", { url: provider.defaultBaseUrl }) : t("URL par défaut du SDK")}>
             <Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder={provider.defaultBaseUrl ?? ""} />
           </Field>
         ) : (
           <>
-            <Field label="Chemin de la commande claude" hint="Laissez vide pour utiliser « claude » du PATH.">
+            <Field label={t("Chemin de la commande claude")} hint={t("Laissez vide pour utiliser « claude » du PATH.")}>
               <Input value={binaryPath} onChange={(e) => setBinaryPath(e.target.value)} placeholder="claude" />
             </Field>
             <Switch
               checked={useSubscription}
               onChange={setUseSubscription}
-              label="Forcer l'abonnement (retire ANTHROPIC_API_KEY de l'environnement de la CLI)"
+              label={t("Forcer l'abonnement (retire ANTHROPIC_API_KEY de l'environnement de la CLI)")}
             />
           </>
         )}
-        <Switch checked={enabled} onChange={setEnabled} label="Activé" />
+        <Switch checked={enabled} onChange={setEnabled} label={t("Activé")} />
 
         {testResult ? (
           <div className={cn("flex items-start gap-2 rounded-md px-3 py-2 text-xs", testResult.ok ? "bg-success/10 text-success" : "bg-danger/10 text-danger")}>
@@ -279,7 +284,7 @@ function PriceInput({ value, onCommit, disabled }: { value: number | null; onCom
         }
         if (next !== value) onCommit(next);
       }}
-      placeholder="inconnu"
+      placeholder={t("inconnu")}
       className="h-7 w-20 rounded border border-transparent bg-transparent px-1.5 text-right text-xs tabular-nums hover:border-border focus:border-accent/60 focus:outline-none disabled:opacity-60"
     />
   );
@@ -297,8 +302,8 @@ function ModelsTable({ provider, models }: { provider: ProviderDTO; models: Mode
     mutationFn: () => api.post<{ added: number; total: number | null; error?: string }>(`/providers/${provider.id}/refresh-models`),
     onSuccess: (r) => {
       if (r.error) toast.error(r.error);
-      else if (r.total === null) toast("Ce fournisseur ne publie pas de liste de modèles : le catalogue intégré est utilisé.");
-      else toast.success(`${r.total} modèles trouvés, ${r.added} ajoutés.`);
+      else if (r.total === null) toast(t("Ce fournisseur ne publie pas de liste de modèles : le catalogue intégré est utilisé."));
+      else toast.success(t("{total} modèles trouvés, {added} ajoutés.", { total: r.total, added: r.added }));
       void qc.invalidateQueries({ queryKey: qk.models });
       void qc.invalidateQueries({ queryKey: qk.providers });
     },
@@ -319,46 +324,46 @@ function ModelsTable({ provider, models }: { provider: ProviderDTO; models: Mode
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
-          <h3 className="text-[13px] font-semibold">Modèles — {provider.name}</h3>
+          <h3 className="text-[13px] font-semibold">{t("Modèles — {name}", { name: provider.name })}</h3>
           <p className="text-xs text-fg-muted">
             {isSubscription
-              ? "Usage couvert par l'abonnement : aucun prix n'est appliqué. Le coût affiché ailleurs est l'équivalent API rapporté par Claude Code."
+              ? t("Usage couvert par l'abonnement : aucun prix n'est appliqué. Le coût affiché ailleurs est l'équivalent API rapporté par Claude Code.")
               : isLocal
-                ? "Modèles locaux : pas de coût par token."
-                : "Prix en $ par million de tokens. Les prix vides sont « inconnus » : le coût des appels restera inconnu tant qu'ils ne sont pas renseignés."}
+                ? t("Modèles locaux : pas de coût par token.")
+                : t("Prix en $ par million de tokens. Les prix vides sont « inconnus » : le coût des appels restera inconnu tant qu'ils ne sont pas renseignés.")}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Input value={newModel} onChange={(e) => setNewModel(e.target.value)} placeholder="Ajouter un ID de modèle" className="h-7 w-52 text-xs" />
+          <Input value={newModel} onChange={(e) => setNewModel(e.target.value)} placeholder={t("Ajouter un ID de modèle")} className="h-7 w-52 text-xs" />
           <Button size="sm" onClick={() => add.mutate()} disabled={!newModel.trim()} loading={add.isPending}>
-            <Plus /> Ajouter
+            <Plus /> {t("Ajouter")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => refresh.mutate()} loading={refresh.isPending}>
-            <RefreshCw /> Actualiser
+            <RefreshCw /> {t("Actualiser")}
           </Button>
         </div>
       </div>
       {models.length === 0 ? (
-        <p className="px-4 py-6 text-center text-xs text-fg-subtle">Aucun modèle. Cliquez sur « Actualiser » pour interroger le fournisseur.</p>
+        <p className="px-4 py-6 text-center text-xs text-fg-subtle">{t("Aucun modèle. Cliquez sur « Actualiser » pour interroger le fournisseur.")}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-[12.5px]">
             <thead>
               <tr className="border-b border-border text-left text-[11px] text-fg-subtle">
-                <th className="px-4 py-2 font-medium">Modèle</th>
-                <th className="px-2 py-2 font-medium">Contexte</th>
-                <th className="px-2 py-2 font-medium">Capacités</th>
-                <th className="px-2 py-2 font-medium">Gamme</th>
+                <th className="px-4 py-2 font-medium">{t("Modèle")}</th>
+                <th className="px-2 py-2 font-medium">{t("Contexte")}</th>
+                <th className="px-2 py-2 font-medium">{t("Capacités")}</th>
+                <th className="px-2 py-2 font-medium">{t("Gamme")}</th>
                 {!isSubscription && !isLocal ? (
                   <>
-                    <th className="px-2 py-2 text-right font-medium">Entrée</th>
-                    <th className="px-2 py-2 text-right font-medium">Sortie</th>
-                    <th className="px-2 py-2 text-right font-medium">Cache lu</th>
-                    <th className="px-2 py-2 text-right font-medium">Cache écrit</th>
-                    <th className="px-2 py-2 font-medium">Source du prix</th>
+                    <th className="px-2 py-2 text-right font-medium">{t("Entrée")}</th>
+                    <th className="px-2 py-2 text-right font-medium">{t("Sortie")}</th>
+                    <th className="px-2 py-2 text-right font-medium">{t("Cache lu")}</th>
+                    <th className="px-2 py-2 text-right font-medium">{t("Cache écrit")}</th>
+                    <th className="px-2 py-2 font-medium">{t("Source du prix")}</th>
                   </>
                 ) : null}
-                <th className="px-4 py-2 font-medium">Actif</th>
+                <th className="px-4 py-2 font-medium">{t("Actif")}</th>
               </tr>
             </thead>
             <tbody>
@@ -368,16 +373,16 @@ function ModelsTable({ provider, models }: { provider: ProviderDTO; models: Mode
                     <div className="font-medium">{m.displayName}</div>
                     <div className="font-mono text-[11px] text-fg-subtle">{m.modelId}</div>
                   </td>
-                  <td className="px-2 py-1.5 tabular-nums text-fg-muted">{m.contextWindow ? `${(m.contextWindow / 1000).toLocaleString("fr-FR")}K` : "inconnu"}</td>
+                  <td className="px-2 py-1.5 tabular-nums text-fg-muted">{m.contextWindow ? `${(m.contextWindow / 1000).toLocaleString(locale())}K` : t("inconnu")}</td>
                   <td className="px-2 py-1.5">
                     <div className="flex gap-1">
-                      {m.capabilities.vision ? <Badge>images</Badge> : null}
+                      {m.capabilities.vision ? <Badge>{t("images")}</Badge> : null}
                       {m.capabilities.pdf ? <Badge>PDF</Badge> : null}
                       {m.capabilities.effort ? <Badge>effort</Badge> : null}
                       {!m.capabilities.vision && !m.capabilities.pdf ? (
-                        <Tooltip content="Capacités non déclarées par le fournisseur : seul le texte est envoyé. Activez « images » si le modèle les supporte.">
+                        <Tooltip content={t("Capacités non déclarées par le fournisseur : seul le texte est envoyé. Activez « images » si le modèle les supporte.")}>
                           <button className="text-[11px] text-fg-subtle underline decoration-dotted" onClick={() => update.mutate({ id: m.id, body: { capabilities: { vision: true } } })}>
-                            texte · activer images
+                            {t("texte · activer images")}
                           </button>
                         </Tooltip>
                       ) : null}
@@ -390,8 +395,8 @@ function ModelsTable({ provider, models }: { provider: ProviderDTO; models: Mode
                       className="h-7 rounded border border-transparent bg-transparent text-xs text-fg-muted hover:border-border"
                     >
                       <option value="">—</option>
-                      <option value="economy">économique</option>
-                      <option value="balanced">équilibré</option>
+                      <option value="economy">{t("économique")}</option>
+                      <option value="balanced">{t("équilibré")}</option>
                       <option value="premium">premium</option>
                     </select>
                   </td>

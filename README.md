@@ -43,7 +43,7 @@ WAR ROOM brings all of this into a single application, designed as a command cen
 
 ## A visual tour
 
-The interface is in French; the captions below describe each screen.
+The interface is available in English and French (Settings, Language). Reports and recaps follow the same setting.
 
 ### An orchestrated group conversation
 
@@ -108,6 +108,7 @@ Calls, input, output and cache tokens, cost actually billed and the equivalent v
 | **Skills** | Inventory of your Claude Code Skills, installation into WAR ROOM, assignment to agents, recommendations based on the brief. |
 | **Knowledge** | Files (PDF, Word, text, code, CSV) with text extraction, structured memory, context recap, daily reports. |
 | **Projects** | Grouping of War Rooms, summary, kanban, list and timeline views, decisions. |
+| **Languages** | English and French interface, switchable at any time; generated reports and recaps follow the same language. |
 
 A detailed, up-to-date account of what is implemented and what is not yet is kept in [docs/STATUS.md](docs/STATUS.md).
 

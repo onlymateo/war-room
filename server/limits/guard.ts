@@ -3,6 +3,7 @@ import { db, schema } from "../db/client";
 import { newId, now } from "../lib/ids";
 import { getProviderDef } from "../providers/catalog";
 import type { LimitLevel, LimitState, LimitWindowState } from "../../shared/types";
+import { serverLang, tx } from "../lib/i18n";
 
 /**
  * Limit guard for the Claude Pro/Max subscription (Claude Code bridge).
@@ -19,8 +20,8 @@ import type { LimitLevel, LimitState, LimitWindowState } from "../../shared/type
 
 export const GUARDED_PROVIDER = "claude-code";
 const WINDOWS = [
-  { key: "five_hour" as const, label: "Fenêtre 5 h", lookbackMs: 90 * 60_000 },
-  { key: "seven_day" as const, label: "Semaine", lookbackMs: 24 * 3_600_000 },
+  { key: "five_hour" as const, label: { fr: "Fenêtre 5 h", en: "5-hour window" }, lookbackMs: 90 * 60_000 },
+  { key: "seven_day" as const, label: { fr: "Semaine", en: "Weekly" }, lookbackMs: 24 * 3_600_000 },
 ];
 const RETENTION_MS = 8 * 86_400_000;
 
@@ -157,6 +158,7 @@ const ORDER: LimitLevel[] = ["unknown", "ok", "warning", "critical", "exhausted"
 
 export async function getLimitState(providerId = GUARDED_PROVIDER): Promise<LimitState> {
   const at = now();
+  const lang = await serverLang();
   const enabled = await getBool("limits.guardEnabled", true);
   const warnAt = await getNum("limits.warnAt", 0.8);
   const pauseAt = await getNum("limits.pauseAt", 0.95);
@@ -168,7 +170,7 @@ export async function getLimitState(providerId = GUARDED_PROVIDER): Promise<Limi
   const windows = WINDOWS.map((w) =>
     computeWindow(
       w.key,
-      w.label,
+      w.label[lang],
       rows.filter((r) => r.window === w.key).map((r) => ({ utilization: r.utilization, resetsAt: r.resetsAt, status: r.status, observedAt: r.observedAt })),
       at,
       warnAt,
@@ -194,7 +196,11 @@ export async function getLimitState(providerId = GUARDED_PROVIDER): Promise<Limi
     shouldPause,
     pauseReason: shouldPause
       ? blocking
-          .map((w) => `${w.label} ${w.level === "exhausted" ? "épuisée" : `à ${Math.round((w.utilization ?? 0) * 100)} %`}`)
+          .map((w) =>
+            w.level === "exhausted"
+              ? tx(lang, `${w.label} épuisée`, `${w.label} exhausted`)
+              : tx(lang, `${w.label} à ${Math.round((w.utilization ?? 0) * 100)} %`, `${w.label} at ${Math.round((w.utilization ?? 0) * 100)}%`),
+          )
           .join(", ")
       : null,
     resumeAt,
@@ -214,6 +220,14 @@ export async function assertClaudeAvailable(providerId: string) {
   if (kind !== "claude_cli") return;
   const state = await getLimitState(providerId);
   if (state.shouldPause) {
-    throw new LimitPausedError(`Limite Claude proche ou atteinte (${state.pauseReason}). Travail mis en pause jusqu'à la réinitialisation.`, state.resumeAt);
+    const lang = await serverLang();
+    throw new LimitPausedError(
+      tx(
+        lang,
+        `Limite Claude proche ou atteinte (${state.pauseReason}). Travail mis en pause jusqu'à la réinitialisation.`,
+        `Claude limit nearly or fully reached (${state.pauseReason}). Work paused until the reset.`,
+      ),
+      state.resumeAt,
+    );
   }
 }

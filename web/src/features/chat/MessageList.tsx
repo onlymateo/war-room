@@ -11,6 +11,7 @@ import { Badge, Tooltip } from "@/components/ui/primitives";
 import { Markdown } from "./Markdown";
 import { fileIcon } from "./Composer";
 import { ToolCallList } from "./ToolCalls";
+import { locale, t } from "@/i18n";
 
 export interface Speaker {
   name: string;
@@ -48,7 +49,7 @@ function AttachmentChips({ ids }: { ids: string[] }) {
           )
         ) : (
           <span key={ids[i]} className="text-xs text-fg-subtle">
-            fichier supprimé
+            {t("fichier supprimé")}
           </span>
         ),
       )}
@@ -71,17 +72,17 @@ export function MessageItem({ message, speaker, modelName, extra }: { message: M
       )}
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-[13px] font-medium">{isUser ? "Vous" : (speaker?.name ?? "Assistant")}</span>
+          <span className="text-[13px] font-medium">{isUser ? t("Vous") : (speaker?.name ?? t("Assistant"))}</span>
           {speaker?.subtitle ? <span className="text-xs text-fg-subtle">{speaker.subtitle}</span> : null}
           {!isUser && modelName ? <span className="text-[11px] text-fg-subtle">{modelName}</span> : null}
           {extra}
           <span className="text-[11px] text-fg-subtle">{fmtRelative(message.createdAt)}</span>
           {!isUser && message.content && !streaming ? (
-            <Tooltip content="Copier">
+            <Tooltip content={t("Copier")}>
               <button
-                onClick={() => navigator.clipboard.writeText(message.content).then(() => toast.success("Copié"))}
+                onClick={() => navigator.clipboard.writeText(message.content).then(() => toast.success(t("Copié")))}
                 className="rounded p-0.5 text-fg-subtle opacity-0 transition-opacity hover:text-fg group-hover:opacity-100"
-                aria-label="Copier"
+                aria-label={t("Copier")}
               >
                 <Copy className="size-3.5" />
               </button>
@@ -90,7 +91,7 @@ export function MessageItem({ message, speaker, modelName, extra }: { message: M
         </div>
         {message.meta.instruction ? (
           <div className="mb-2 rounded-md border-l-2 border-accent/50 bg-accent-soft px-2.5 py-1.5 text-xs text-fg-muted">
-            <span className="font-medium text-fg">Mission : </span>
+            <span className="font-medium text-fg">{t("Mission : ")}</span>
             {message.meta.instruction}
           </div>
         ) : null}
@@ -112,7 +113,7 @@ export function MessageItem({ message, speaker, modelName, extra }: { message: M
           <div className="mt-2 flex items-start gap-1.5 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
             <FileWarning className="mt-0.5 size-3.5 shrink-0" />
             <span>
-              Non transmis au modèle : {skipped.map((s) => `${s.name} (${s.reason})`).join(" ; ")}. Le modèle ne les a pas vus.
+              {t("Non transmis au modèle : {files}. Le modèle ne les a pas vus.", { files: skipped.map((s) => `${s.name} (${s.reason})`).join(t(" ; ")) })}
             </span>
           </div>
         ) : null}
@@ -120,12 +121,14 @@ export function MessageItem({ message, speaker, modelName, extra }: { message: M
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
             <PauseCircle className="size-3.5 shrink-0" />
             <span className="flex-1">
-              Réponse en pause : limite Claude.
-              {message.meta.paused.resetsAt ? ` Reprise possible après ${new Date(message.meta.paused.resetsAt).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" })}.` : ""}
+              {t("Réponse en pause : limite Claude.")}
+              {message.meta.paused.resetsAt
+                ? ` ${t("Reprise possible après {time}.", { time: new Date(message.meta.paused.resetsAt).toLocaleString(locale(), { weekday: "short", hour: "2-digit", minute: "2-digit" }) })}`
+                : ""}
             </span>
             {message.meta.paused.pausedWorkId ? (
               <Link to={{ search: `?resume=${message.meta.paused.pausedWorkId}` }} className="font-medium underline underline-offset-2">
-                Reprendre maintenant
+                {t("Reprendre maintenant")}
               </Link>
             ) : null}
           </div>
@@ -133,13 +136,13 @@ export function MessageItem({ message, speaker, modelName, extra }: { message: M
         {message.status === "error" ? (
           <div className="mt-2 flex items-start gap-1.5 rounded-md bg-danger/10 px-2.5 py-1.5 text-xs text-danger">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-            <span className="whitespace-pre-wrap">{message.error ?? "Erreur"}</span>
+            <span className="whitespace-pre-wrap">{message.error ?? t("Erreur")}</span>
           </div>
         ) : null}
         {message.status === "aborted" ? (
           <div className="mt-1.5">
             <Badge tone="neutral">
-              <CircleSlash /> Interrompu
+              <CircleSlash /> {t("Interrompu")}
             </Badge>
           </div>
         ) : null}

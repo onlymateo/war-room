@@ -1,5 +1,6 @@
 import { fmtPct, fmtRelative } from "@/lib/utils";
 import { Card, CardHeader, Progress } from "@/components/ui/primitives";
+import { t } from "@/i18n";
 
 export interface BudgetItem {
   scope: "global" | "project" | "warroom" | "agent";
@@ -23,7 +24,7 @@ export function readQuota(raw: unknown): { label: string; utilization: number | 
   if (!raw || typeof raw !== "object") return [];
   const windows = (raw as { unifiedWindows?: unknown }).unifiedWindows;
   if (!windows || typeof windows !== "object") return [];
-  const labels: Record<string, string> = { five_hour: "Fenêtre 5 h", seven_day: "Fenêtre 7 jours" };
+  const labels: Record<string, string> = { five_hour: t("Fenêtre 5 h"), seven_day: t("Fenêtre 7 jours") };
   return Object.entries(windows as Record<string, unknown>).map(([key, w]) => {
     const win = (w && typeof w === "object" ? w : {}) as { utilization?: unknown; resetsAt?: unknown; status?: unknown };
     return {
@@ -48,8 +49,12 @@ export function SubscriptionQuota({ raw }: { raw: unknown }) {
   return (
     <Card>
       <CardHeader
-        title="Quota abonnement Claude (Claude Code)"
-        description={`Taux d'utilisation rapporté par Claude Code lors du dernier appel${observed ? ` (${fmtRelative(observed)})` : ""}. Aucun coût facturé.`}
+        title={t("Quota abonnement Claude (Claude Code)")}
+        description={
+          observed
+            ? t("Taux d'utilisation rapporté par Claude Code lors du dernier appel ({when}). Aucun coût facturé.", { when: fmtRelative(observed) })
+            : t("Taux d'utilisation rapporté par Claude Code lors du dernier appel. Aucun coût facturé.")
+        }
       />
       <div className="space-y-3 px-4 py-3">
         {windows.map((w) => {
@@ -59,8 +64,8 @@ export function SubscriptionQuota({ raw }: { raw: unknown }) {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-fg-muted">{w.label}</span>
                 <span className="tabular-nums">
-                  {w.utilization === null ? "inconnu" : fmtPct(w.utilization)}
-                  {w.resetsAt ? <span className="ml-2 text-fg-subtle">réinit. {fmtRelative(w.resetsAt)}</span> : null}
+                  {w.utilization === null ? t("inconnu") : fmtPct(w.utilization)}
+                  {w.resetsAt ? <span className="ml-2 text-fg-subtle">{t("réinit. {when}", { when: fmtRelative(w.resetsAt) })}</span> : null}
                 </span>
               </div>
               <Progress value={w.utilization} tone={tone} />

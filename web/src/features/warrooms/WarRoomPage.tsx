@@ -15,6 +15,7 @@ import { ActivityTab, AgentsTab, RoomSettingsTab, RoomUsageTab, TasksTab } from 
 import { ReportsTab } from "./ReportsTab";
 import { RecapDialog } from "./RecapDialog";
 import { SecretsDialog } from "./SecretsDialog";
+import { t } from "@/i18n";
 
 export default function WarRoomPage() {
   const { id = "" } = useParams();
@@ -45,7 +46,7 @@ export default function WarRoomPage() {
       </div>
     );
   }
-  if (error || !data) return <div className="p-8 text-sm text-danger">War Room introuvable.</div>;
+  if (error || !data) return <div className="p-8 text-sm text-danger">{t("War Room introuvable.")}</div>;
 
   const { room, agents } = data;
   const orch = agents.find((a) => a.role === "orchestrator");
@@ -75,17 +76,17 @@ export default function WarRoomPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <Tooltip content={AUTONOMY_HINT[room.autonomy]}>
+            <Tooltip content={t(AUTONOMY_HINT[room.autonomy])}>
               <span>
-                <Badge tone="outline">{AUTONOMY_LABEL[room.autonomy]}</Badge>
+                <Badge tone="outline">{t(AUTONOMY_LABEL[room.autonomy])}</Badge>
               </span>
             </Tooltip>
-            <Tooltip content={STRATEGY_HINT[room.costStrategy]}>
+            <Tooltip content={t(STRATEGY_HINT[room.costStrategy])}>
               <span>
-                <Badge tone="outline">{STRATEGY_LABEL[room.costStrategy]}</Badge>
+                <Badge tone="outline">{t(STRATEGY_LABEL[room.costStrategy])}</Badge>
               </span>
             </Tooltip>
-            <Tooltip content="Dépense API réellement facturée (hors usage couvert par un abonnement)">
+            <Tooltip content={t("Dépense API réellement facturée (hors usage couvert par un abonnement)")}>
               <span>
                 <Badge tone={room.budgetUsd !== null && data.spentUsd >= room.budgetUsd * 0.8 ? "danger" : "neutral"}>
                   {fmtUsd(data.spentUsd)}
@@ -93,18 +94,18 @@ export default function WarRoomPage() {
                 </Badge>
               </span>
             </Tooltip>
-            <Tooltip content="Clés secrètes : utilisables par les agents dans leurs outils, jamais lisibles par eux">
+            <Tooltip content={t("Clés secrètes : utilisables par les agents dans leurs outils, jamais lisibles par eux")}>
               <Button size="sm" variant="secondary" onClick={() => setSecretsOpen(true)}>
-                <KeyRound /> Clés
+                <KeyRound /> {t("Clés")}
               </Button>
             </Tooltip>
-            <Tooltip content="Récapitulatif du contexte, à transmettre à une autre IA">
+            <Tooltip content={t("Récapitulatif du contexte, à transmettre à une autre IA")}>
               <Button size="sm" variant="secondary" onClick={() => setRecapOpen(true)}>
-                <FileText /> Récap contexte
+                <FileText /> {t("Récap contexte")}
               </Button>
             </Tooltip>
-            <Tooltip content="Supprimer la War Room">
-              <Button variant="danger-ghost" size="icon-sm" aria-label="Supprimer la War Room" onClick={() => deleteRoom.ask({ id: room.id, name: room.name, agentCount: agents.length })}>
+            <Tooltip content={t("Supprimer la War Room")}>
+              <Button variant="danger-ghost" size="icon-sm" aria-label={t("Supprimer la War Room")} onClick={() => deleteRoom.ask({ id: room.id, name: room.name, agentCount: agents.length })}>
                 <Trash2 />
               </Button>
             </Tooltip>
@@ -116,14 +117,14 @@ export default function WarRoomPage() {
           className="mt-3 border-b-0"
           items={[
             { value: "collective", label: "Conversation", icon: <MessageSquare /> },
-            { value: "org", label: "Organisation", icon: <Network /> },
+            { value: "org", label: t("Organisation"), icon: <Network /> },
             { value: "agents", label: "Agents", icon: <Bot />, count: agents.length },
-            { value: "tasks", label: "Tâches", icon: <ListTodo /> },
-            { value: "reports", label: "Rapports", icon: <CalendarClock /> },
-            { value: "analysis", label: "Analyse & Skills", icon: <Sparkles /> },
-            { value: "activity", label: "Journal", icon: <Activity /> },
-            { value: "usage", label: "Consommation", icon: <BarChart3 /> },
-            { value: "settings", label: "Paramètres", icon: <Settings2 /> },
+            { value: "tasks", label: t("Tâches"), icon: <ListTodo /> },
+            { value: "reports", label: t("Rapports"), icon: <CalendarClock /> },
+            { value: "analysis", label: t("Analyse & Skills"), icon: <Sparkles /> },
+            { value: "activity", label: t("Journal"), icon: <Activity /> },
+            { value: "usage", label: t("Consommation"), icon: <BarChart3 /> },
+            { value: "settings", label: t("Paramètres"), icon: <Settings2 /> },
           ]}
         />
       </header>

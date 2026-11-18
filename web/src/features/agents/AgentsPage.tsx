@@ -4,6 +4,7 @@ import { Bot, Crown, MessageSquare, Search, Swords, Trash2 } from "lucide-react"
 import { useDeleteAgentDialog, useDeleteRoomDialog } from "../warrooms/deletion";
 import { useAgents, useModels, useWarRooms } from "@/lib/queries";
 import { fmtUsd } from "@/lib/utils";
+import { t } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/form";
 import { Badge, Card, EmptyState, Page, PageHeader, Skeleton, Tooltip } from "@/components/ui/primitives";
@@ -39,8 +40,11 @@ export default function AgentsPage() {
         title="Agents"
         description={
           total
-            ? `${total} agent${total > 1 ? "s" : ""} dont ${orchestrators} orchestrateur${orchestrators > 1 ? "s" : ""}, répartis dans vos War Rooms.`
-            : "Tous les agents de vos War Rooms."
+            ? t("{agents} dont {orchestrators}, répartis dans vos War Rooms.", {
+                agents: total > 1 ? t("{count} agents", { count: total }) : t("{count} agent", { count: total }),
+                orchestrators: orchestrators > 1 ? t("{count} orchestrateurs", { count: orchestrators }) : t("{count} orchestrateur", { count: orchestrators }),
+              })
+            : t("Tous les agents de vos War Rooms.")
         }
         actions={
           <Link to="/warrooms">
@@ -54,10 +58,10 @@ export default function AgentsPage() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative w-64">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-subtle" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un agent…" className="pl-8" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Rechercher un agent…")} className="pl-8" />
         </div>
         <Select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)} className="w-56">
-          <option value="">Toutes les War Rooms</option>
+          <option value="">{t("Toutes les War Rooms")}</option>
           {(rooms.data ?? []).map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
@@ -65,39 +69,39 @@ export default function AgentsPage() {
           ))}
         </Select>
         <Select value={role} onChange={(e) => setRole(e.target.value)} className="w-44">
-          <option value="">Tous les rôles</option>
-          <option value="orchestrator">Orchestrateurs</option>
-          <option value="agent">Agents spécialisés</option>
+          <option value="">{t("Tous les rôles")}</option>
+          <option value="orchestrator">{t("Orchestrateurs")}</option>
+          <option value="agent">{t("Agents spécialisés")}</option>
         </Select>
-        <p className="ml-auto text-xs text-fg-subtle">Les agents se créent et se configurent depuis leur War Room.</p>
+        <p className="ml-auto text-xs text-fg-subtle">{t("Les agents se créent et se configurent depuis leur War Room.")}</p>
       </div>
 
       {agents.isLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : agents.isError ? (
-        <EmptyState title="Impossible de charger les agents" description={(agents.error as Error).message} />
+        <EmptyState title={t("Impossible de charger les agents")} description={(agents.error as Error).message} />
       ) : !total ? (
         <EmptyState
           icon={<Bot />}
-          title="Aucun agent"
-          description="Créez une War Room : son orchestrateur analysera votre brief et proposera une équipe d'agents."
+          title={t("Aucun agent")}
+          description={t("Créez une War Room : son orchestrateur analysera votre brief et proposera une équipe d'agents.")}
           action={
             <Link to="/warrooms/new">
-              <Button variant="primary">Créer une War Room</Button>
+              <Button variant="primary">{t("Créer une War Room")}</Button>
             </Link>
           }
         />
       ) : !filtered.length ? (
-        <EmptyState title="Aucun agent ne correspond aux filtres" />
+        <EmptyState title={t("Aucun agent ne correspond aux filtres")} />
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead className="border-b border-border text-xs text-fg-muted">
               <tr>
                 <th className="px-4 py-2 text-left font-medium">Agent</th>
-                <th className="px-3 py-2 text-left font-medium">Rôle</th>
+                <th className="px-3 py-2 text-left font-medium">{t("Rôle")}</th>
                 <th className="px-3 py-2 text-left font-medium">War Room</th>
-                <th className="px-3 py-2 text-left font-medium">Modèle</th>
+                <th className="px-3 py-2 text-left font-medium">{t("Modèle")}</th>
                 <th className="px-3 py-2 text-right font-medium">Skills</th>
                 <th className="px-3 py-2 text-right font-medium">MCP</th>
                 <th className="px-3 py-2 text-right font-medium">Budget</th>
@@ -121,7 +125,7 @@ export default function AgentsPage() {
                     <td className="px-3 py-2.5">
                       {a.role === "orchestrator" ? (
                         <Badge tone="warning">
-                          <Crown /> Orchestrateur
+                          <Crown /> {t("Orchestrateur")}
                         </Badge>
                       ) : (
                         <Badge tone="neutral">Agent</Badge>
@@ -140,8 +144,8 @@ export default function AgentsPage() {
                       {a.providerId && a.modelId ? (
                         <span className="text-fg-muted">{modelLabel(models.data ?? [], a.providerId, a.modelId)}</span>
                       ) : (
-                        <Tooltip content="Cet agent utilise le modèle de l'orchestrateur de sa War Room">
-                          <span className="text-fg-subtle">hérité</span>
+                        <Tooltip content={t("Cet agent utilise le modèle de l'orchestrateur de sa War Room")}>
+                          <span className="text-fg-subtle">{t("hérité")}</span>
                         </Tooltip>
                       )}
                     </td>
@@ -149,7 +153,7 @@ export default function AgentsPage() {
                     <td className="px-3 py-2.5 text-right tabular-nums text-fg-muted">
                       {a.mcpServers.length}
                       {a.mcpServers.length && !a.permissions.useMcp ? (
-                        <Tooltip content="Serveurs assignés mais permission MCP désactivée">
+                        <Tooltip content={t("Serveurs assignés mais permission MCP désactivée")}>
                           <span className="ml-1 text-warning">!</span>
                         </Tooltip>
                       ) : null}
@@ -158,20 +162,20 @@ export default function AgentsPage() {
                     <td className="px-2 py-2.5">
                       <div className="flex items-center justify-end gap-0.5">
                         {chatHref ? (
-                          <Tooltip content="Discuter avec cet agent">
+                          <Tooltip content={t("Discuter avec cet agent")}>
                             <Link to={chatHref}>
-                              <Button variant="ghost" size="icon-sm" aria-label={`Discuter avec ${a.name}`}>
+                              <Button variant="ghost" size="icon-sm" aria-label={t("Discuter avec {name}", { name: a.name })}>
                                 <MessageSquare />
                               </Button>
                             </Link>
                           </Tooltip>
                         ) : null}
                         {a.role === "orchestrator" ? (
-                          <Tooltip content="Un orchestrateur se supprime avec sa War Room : supprimer toute la War Room">
+                          <Tooltip content={t("Un orchestrateur se supprime avec sa War Room : supprimer toute la War Room")}>
                             <Button
                               variant="danger-ghost"
                               size="icon-sm"
-                              aria-label={`Supprimer la War Room de ${a.name}`}
+                              aria-label={t("Supprimer la War Room de {name}", { name: a.name })}
                               disabled={!a.warRoomId}
                               onClick={() => {
                                 const room = rooms.data?.find((r) => r.id === a.warRoomId);
@@ -182,8 +186,8 @@ export default function AgentsPage() {
                             </Button>
                           </Tooltip>
                         ) : (
-                          <Tooltip content="Supprimer cet agent">
-                            <Button variant="danger-ghost" size="icon-sm" aria-label={`Supprimer ${a.name}`} onClick={() => deleteAgent.ask({ id: a.id, name: a.name, warRoomId: a.warRoomId })}>
+                          <Tooltip content={t("Supprimer cet agent")}>
+                            <Button variant="danger-ghost" size="icon-sm" aria-label={t("Supprimer {name}", { name: a.name })} onClick={() => deleteAgent.ask({ id: a.id, name: a.name, warRoomId: a.warRoomId })}>
                               <Trash2 />
                             </Button>
                           </Tooltip>

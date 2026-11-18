@@ -2,6 +2,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { db, schema } from "../db/client";
 import { decryptSecret, encryptSecret, maskSecret } from "../lib/crypto";
 import { newId, now } from "../lib/ids";
+import { serverLang, tx } from "../lib/i18n";
 
 /**
  * War Room secrets: usable by agents, never readable by them.
@@ -138,9 +139,12 @@ export async function listSecrets(warRoomId: string) {
 
 export async function createSecret(warRoomId: string, input: { name: string; value: string; description?: string; agentIds?: string[]; serverIds?: string[]; requireApproval?: boolean }) {
   const name = input.name.trim().toUpperCase();
-  if (!SECRET_NAME_RE.test(name)) throw new Error("Nom invalide : lettres majuscules, chiffres et _ (ex. ROBLOX_API_KEY).");
+  const lang = await serverLang();
+  if (!SECRET_NAME_RE.test(name)) {
+    throw new Error(tx(lang, "Nom invalide : lettres majuscules, chiffres et _ (ex. ROBLOX_API_KEY).", "Invalid name: uppercase letters, digits and _ only (e.g. ROBLOX_API_KEY)."));
+  }
   const existing = await db.query.roomSecrets.findFirst({ where: and(eq(schema.roomSecrets.warRoomId, warRoomId), eq(schema.roomSecrets.name, name)) });
-  if (existing) throw new Error(`Une clé ${name} existe déjà dans cette War Room.`);
+  if (existing) throw new Error(tx(lang, `Une clé ${name} existe déjà dans cette War Room.`, `A key named ${name} already exists in this War Room.`));
   const ts = now();
   const row = {
     id: newId("sec"),

@@ -7,6 +7,7 @@ import { cn, COST_KIND_LABEL, fmtPct, fmtTokens, fmtUsd, fmtMs } from "@/lib/uti
 import { Badge, Tooltip } from "./ui/primitives";
 import { Select } from "./ui/form";
 import { useUsableModels } from "@/lib/queries";
+import { t } from "@/i18n";
 
 export const AGENT_ICONS: Record<string, LucideIcon> = {
   bot: Bot, brain: Brain, code: Code2, search: Search, palette: Palette, shield: Shield, check: CheckCircle2, chart: BarChart3,
@@ -35,7 +36,7 @@ export function AgentAvatar({ icon, color, size = "md", className }: { icon: str
 }
 
 export function modelLabel(models: ModelDTO[], providerId: string | null, modelId: string | null) {
-  if (!providerId || !modelId) return "aucun modèle";
+  if (!providerId || !modelId) return t("aucun modèle");
   return models.find((m) => m.providerId === providerId && m.modelId === modelId)?.displayName ?? modelId;
 }
 
@@ -47,7 +48,7 @@ export function ModelPicker({
   modelId,
   onChange,
   allowNone,
-  noneLabel = "Hériter de l'orchestrateur",
+  noneLabel,
   className,
 }: {
   providerId: string | null;
@@ -73,8 +74,8 @@ export function ModelPicker({
         onChange(p, rest.join("::"));
       }}
     >
-      {allowNone || !value ? <option value="">{isLoading ? "Chargement…" : allowNone ? noneLabel : groups.length ? "Choisir un modèle" : "Aucun fournisseur connecté"}</option> : null}
-      {currentMissing ? <option value={value}>{modelId} (fournisseur indisponible)</option> : null}
+      {allowNone || !value ? <option value="">{isLoading ? t("Chargement…") : allowNone ? (noneLabel ?? t("Hériter de l'orchestrateur")) : groups.length ? t("Choisir un modèle") : t("Aucun fournisseur connecté")}</option> : null}
+      {currentMissing ? <option value={value}>{t("{model} (fournisseur indisponible)", { model: modelId })}</option> : null}
       {groups.map((p) => (
         <optgroup key={p.id} label={p.name}>
           {models
@@ -96,19 +97,19 @@ export function UsageLine({ usage, className }: { usage: UsageSummary; className
   const ctxRatio = usage.contextTokens !== null && usage.contextWindow ? usage.contextTokens / usage.contextWindow : null;
   return (
     <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-subtle tabular-nums", className)}>
-      <Tooltip content="Tokens d'entrée (non mis en cache) rapportés par le fournisseur">
+      <Tooltip content={t("Tokens d'entrée (non mis en cache) rapportés par le fournisseur")}>
         <span>↑ {fmtTokens(usage.inputTokens, { compact: true })}</span>
       </Tooltip>
-      <Tooltip content="Tokens de sortie rapportés par le fournisseur">
+      <Tooltip content={t("Tokens de sortie rapportés par le fournisseur")}>
         <span>↓ {fmtTokens(usage.outputTokens, { compact: true })}</span>
       </Tooltip>
       {usage.cacheReadTokens ? (
-        <Tooltip content="Tokens lus depuis le cache (facturés à tarif réduit)">
+        <Tooltip content={t("Tokens lus depuis le cache (facturés à tarif réduit)")}>
           <span>cache {fmtTokens(usage.cacheReadTokens, { compact: true })}</span>
         </Tooltip>
       ) : null}
       {ctxRatio !== null ? (
-        <Tooltip content={`Contexte envoyé : ${fmtTokens(usage.contextTokens)} / ${fmtTokens(usage.contextWindow)} tokens`}>
+        <Tooltip content={t("Contexte envoyé : {used} / {total} tokens", { used: fmtTokens(usage.contextTokens), total: fmtTokens(usage.contextWindow) })}>
           <span>ctx {fmtPct(ctxRatio)}</span>
         </Tooltip>
       ) : null}
@@ -121,21 +122,21 @@ export function UsageLine({ usage, className }: { usage: UsageSummary; className
 export function CostTag({ costUsd, costKind }: { costUsd: number | null; costKind: string }) {
   if (costKind === "subscription") {
     return (
-      <Tooltip content="Inclus dans votre abonnement : aucun coût facturé. Valeur équivalente API rapportée par Claude Code, à titre indicatif.">
-        <span>abonnement{costUsd !== null ? ` (≈${fmtUsd(costUsd)} éq. API)` : ""}</span>
+      <Tooltip content={t("Inclus dans votre abonnement : aucun coût facturé. Valeur équivalente API rapportée par Claude Code, à titre indicatif.")}>
+        <span>{costUsd !== null ? t("abonnement (≈{cost} éq. API)", { cost: fmtUsd(costUsd) }) : t("abonnement")}</span>
       </Tooltip>
     );
   }
   if (costKind === "local") return <span>local</span>;
   if (costKind === "unknown") {
     return (
-      <Tooltip content="Prix du modèle ou tokens non disponibles. Renseignez le prix dans Models & Providers.">
-        <span>coût inconnu</span>
+      <Tooltip content={t("Prix du modèle ou tokens non disponibles. Renseignez le prix dans Models & Providers.")}>
+        <span>{t("coût inconnu")}</span>
       </Tooltip>
     );
   }
   return (
-    <Tooltip content="Coût calculé à partir des tokens rapportés par le fournisseur et du prix du modèle">
+    <Tooltip content={t("Coût calculé à partir des tokens rapportés par le fournisseur et du prix du modèle")}>
       <span>{fmtUsd(costUsd)}</span>
     </Tooltip>
   );
@@ -143,7 +144,7 @@ export function CostTag({ costUsd, costKind }: { costUsd: number | null; costKin
 
 export function CostKindBadge({ kind }: { kind: string }) {
   const tone = kind === "api_billed" ? "accent" : kind === "subscription" ? "success" : kind === "local" ? "neutral" : "warning";
-  return <Badge tone={tone}>{COST_KIND_LABEL[kind] ?? kind}</Badge>;
+  return <Badge tone={tone}>{COST_KIND_LABEL[kind] ? t(COST_KIND_LABEL[kind]) : kind}</Badge>;
 }
 
 export const AUTONOMY_LABEL = { assisted: "Assisté", semi: "Semi-autonome", autonomous: "Autonome" } as const;

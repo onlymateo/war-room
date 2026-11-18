@@ -2,6 +2,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { Dialog as RDialog, Tabs as RTabs, Tooltip as RTooltip, DropdownMenu as RMenu } from "radix-ui";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 // ---------------------------------------------------------------- Badge
 
@@ -147,7 +148,7 @@ export function Dialog({
               <RDialog.Title className="text-[15px] font-semibold">{title}</RDialog.Title>
               {description ? <RDialog.Description className="mt-1 text-xs text-fg-muted">{description}</RDialog.Description> : <RDialog.Description className="sr-only">{title}</RDialog.Description>}
             </div>
-            <RDialog.Close className="rounded p-1 text-fg-subtle hover:bg-surface-2 hover:text-fg" aria-label="Fermer">
+            <RDialog.Close className="rounded p-1 text-fg-subtle hover:bg-surface-2 hover:text-fg" aria-label={t("Fermer")}>
               <X className="size-4" />
             </RDialog.Close>
           </div>

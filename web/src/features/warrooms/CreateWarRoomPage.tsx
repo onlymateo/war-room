@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Card, Page, PageHeader } from "@/components/ui/primitives";
 import { AUTONOMY_HINT, AUTONOMY_LABEL, ModelPicker, STRATEGY_HINT, STRATEGY_LABEL } from "@/components/domain";
+import { t } from "@/i18n";
 
 type Autonomy = keyof typeof AUTONOMY_LABEL;
 type Strategy = keyof typeof STRATEGY_LABEL;
@@ -51,13 +52,13 @@ export default function CreateWarRoomPage() {
   const [files, setFiles] = useState<FileDTO[]>([]);
   const [uploading, setUploading] = useState(false);
   const [orchName, setOrchName] = useState("ATLAS");
-  const [personality, setPersonality] = useState("Calme, structuré, factuel. Pose les bonnes questions avant d'agir.");
+  const [personality, setPersonality] = useState(() => t("Calme, structuré, factuel. Pose les bonnes questions avant d'agir."));
   const [orchModel, setOrchModel] = useState<{ providerId: string | null; modelId: string | null }>({ providerId: null, modelId: null });
   const [autonomy, setAutonomy] = useState<Autonomy>("semi");
   const [strategy, setStrategy] = useState<Strategy>("balanced");
   const [budget, setBudget] = useState("");
   const [maxAgents, setMaxAgents] = useState("3");
-  const [communication, setCommunication] = useState("Réponses en français, concises et structurées.");
+  const [communication, setCommunication] = useState(() => t("Réponses en français, concises et structurées."));
   const [analyze, setAnalyze] = useState(true);
 
   // Default orchestrator model: Claude Opus 5.5 when connected, else a premium model, else the first available.
@@ -78,7 +79,7 @@ export default function CreateWarRoomPage() {
         const [stored] = await api.upload<FileDTO[]>("/files", form);
         setFiles((prev) => [...prev, stored]);
       } catch (err) {
-        toast.error(`${f.name} : ${err instanceof Error ? err.message : String(err)}`);
+        toast.error(t("{name} : {error}", { name: f.name, error: err instanceof Error ? err.message : String(err) }));
       }
     }
     setUploading(false);
@@ -105,7 +106,7 @@ export default function CreateWarRoomPage() {
           modelId: effectiveModel.modelId,
           icon: "crown",
           color: "amber",
-          description: "Orchestrateur principal de la War Room.",
+          description: t("Orchestrateur principal de la War Room."),
         },
       }),
     onSuccess: ({ id }) => {
@@ -122,18 +123,18 @@ export default function CreateWarRoomPage() {
       <Link to="/warrooms" className="mb-4 inline-flex items-center gap-1 text-xs text-fg-muted hover:text-fg">
         <ArrowLeft className="size-3.5" /> War Rooms
       </Link>
-      <PageHeader icon={<Swords />} title="Nouvelle War Room" description="Décrivez le projet : l'orchestrateur l'analysera et proposera une organisation." />
+      <PageHeader icon={<Swords />} title={t("Nouvelle War Room")} description={t("Décrivez le projet : l'orchestrateur l'analysera et proposera une organisation.")} />
 
       <div className="space-y-5">
         <Card className="space-y-4 p-5">
-          <h2 className="text-[13px] font-semibold">Projet</h2>
+          <h2 className="text-[13px] font-semibold">{t("Projet")}</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nom de la War Room">
+            <Field label={t("Nom de la War Room")}>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="SaaS Analytics" autoFocus />
             </Field>
-            <Field label="Projet (optionnel)">
+            <Field label={t("Projet (optionnel)")}>
               <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-                <option value="">Aucun</option>
+                <option value="">{t("Aucun")}</option>
                 {(projects.data ?? []).map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -143,27 +144,27 @@ export default function CreateWarRoomPage() {
             </Field>
           </div>
           <Field label="Description">
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Développer une plateforme SaaS d'analyse de données." />
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("Développer une plateforme SaaS d'analyse de données.")} />
           </Field>
-          <Field label="Objectif">
-            <Input value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Lancer un MVP utilisable en 3 mois." />
+          <Field label={t("Objectif")}>
+            <Input value={objective} onChange={(e) => setObjective(e.target.value)} placeholder={t("Lancer un MVP utilisable en 3 mois.")} />
           </Field>
-          <Field label="Brief initial" hint="Plus il est précis, meilleure sera l'analyse. Vous pourrez le modifier ensuite.">
-            <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={7} placeholder="Je souhaite développer une application SaaS permettant de…" />
+          <Field label={t("Brief initial")} hint={t("Plus il est précis, meilleure sera l'analyse. Vous pourrez le modifier ensuite.")}>
+            <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} rows={7} placeholder={t("Je souhaite développer une application SaaS permettant de…")} />
           </Field>
-          <Field label="Fichiers de référence" hint="Cahier des charges, maquettes, notes… Le texte extrait est fourni à l'orchestrateur lors de l'analyse.">
+          <Field label={t("Fichiers de référence")} hint={t("Cahier des charges, maquettes, notes… Le texte extrait est fourni à l'orchestrateur lors de l'analyse.")}>
             <div className="flex flex-wrap items-center gap-1.5">
               {files.map((f) => (
                 <span key={f.id} className="flex h-7 items-center gap-1.5 rounded-md bg-surface-2 pl-2 pr-1 text-xs">
                   <span className="max-w-48 truncate">{f.name}</span>
                   <span className="text-fg-subtle">{fmtBytes(f.size)}</span>
-                  <button onClick={() => setFiles((p) => p.filter((x) => x.id !== f.id))} className="rounded p-0.5 hover:bg-surface-3" aria-label="Retirer">
+                  <button onClick={() => setFiles((p) => p.filter((x) => x.id !== f.id))} className="rounded p-0.5 hover:bg-surface-3" aria-label={t("Retirer")}>
                     <X className="size-3" />
                   </button>
                 </span>
               ))}
               <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-2.5 text-xs text-fg-muted hover:text-fg">
-                {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />} Ajouter
+                {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />} {t("Ajouter")}
                 <input type="file" multiple className="hidden" onChange={(e) => e.target.files && void upload(e.target.files)} />
               </label>
             </div>
@@ -172,46 +173,46 @@ export default function CreateWarRoomPage() {
 
         <Card className="space-y-4 p-5">
           <h2 className="flex items-center gap-2 text-[13px] font-semibold">
-            <Crown className="size-4 text-amber-500" /> Orchestrateur principal
+            <Crown className="size-4 text-amber-500" /> {t("Orchestrateur principal")}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nom">
+            <Field label={t("Nom")}>
               <Input value={orchName} onChange={(e) => setOrchName(e.target.value)} placeholder="ATLAS, NEXUS, COMMANDER…" />
             </Field>
-            <Field label="Modèle" hint="Un modèle performant est recommandé : il planifie et synthétise.">
+            <Field label={t("Modèle")} hint={t("Un modèle performant est recommandé : il planifie et synthétise.")}>
               {isLoading ? (
-                <Input disabled value="Chargement…" />
+                <Input disabled value={t("Chargement…")} />
               ) : models.length ? (
                 <ModelPicker providerId={effectiveModel.providerId} modelId={effectiveModel.modelId} onChange={(providerId, modelId) => setOrchModel({ providerId, modelId })} />
               ) : (
                 <Link to="/providers" className="text-xs text-accent hover:underline">
-                  Connectez d'abord un fournisseur →
+                  {t("Connectez d'abord un fournisseur →")}
                 </Link>
               )}
             </Field>
           </div>
-          <Field label="Personnalité">
+          <Field label={t("Personnalité")}>
             <Input value={personality} onChange={(e) => setPersonality(e.target.value)} />
           </Field>
         </Card>
 
         <Card className="space-y-4 p-5">
-          <h2 className="text-[13px] font-semibold">Gouvernance et coûts</h2>
-          <Field label="Niveau d'autonomie">
-            <OptionCards value={autonomy} onChange={setAutonomy} options={(Object.keys(AUTONOMY_LABEL) as Autonomy[]).map((k) => ({ value: k, label: AUTONOMY_LABEL[k], hint: AUTONOMY_HINT[k] }))} />
+          <h2 className="text-[13px] font-semibold">{t("Gouvernance et coûts")}</h2>
+          <Field label={t("Niveau d'autonomie")}>
+            <OptionCards value={autonomy} onChange={setAutonomy} options={(Object.keys(AUTONOMY_LABEL) as Autonomy[]).map((k) => ({ value: k, label: t(AUTONOMY_LABEL[k]), hint: t(AUTONOMY_HINT[k]) }))} />
           </Field>
-          <Field label="Stratégie de coût">
-            <OptionCards value={strategy} onChange={setStrategy} options={(Object.keys(STRATEGY_LABEL) as Strategy[]).map((k) => ({ value: k, label: STRATEGY_LABEL[k], hint: STRATEGY_HINT[k] }))} />
+          <Field label={t("Stratégie de coût")}>
+            <OptionCards value={strategy} onChange={setStrategy} options={(Object.keys(STRATEGY_LABEL) as Strategy[]).map((k) => ({ value: k, label: t(STRATEGY_LABEL[k]), hint: t(STRATEGY_HINT[k]) }))} />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Budget API maximum ($)" hint="Appels bloqués une fois atteint. Ne concerne pas l'usage couvert par un abonnement.">
-              <Input type="number" min={0} step="0.5" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="Illimité" />
+            <Field label={t("Budget API maximum ($)")} hint={t("Appels bloqués une fois atteint. Ne concerne pas l'usage couvert par un abonnement.")}>
+              <Input type="number" min={0} step="0.5" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder={t("Illimité")} />
             </Field>
-            <Field label="Agents max par message" hint="Limite combien d'agents l'orchestrateur peut solliciter à la fois.">
+            <Field label={t("Agents max par message")} hint={t("Limite combien d'agents l'orchestrateur peut solliciter à la fois.")}>
               <Input type="number" min={1} max={10} value={maxAgents} onChange={(e) => setMaxAgents(e.target.value)} />
             </Field>
           </div>
-          <Field label="Préférences de communication">
+          <Field label={t("Préférences de communication")}>
             <Input value={communication} onChange={(e) => setCommunication(e.target.value)} />
           </Field>
         </Card>
@@ -219,10 +220,10 @@ export default function CreateWarRoomPage() {
         <div className="flex items-center justify-between gap-3">
           <label className="flex items-center gap-2 text-[13px] text-fg-muted">
             <input type="checkbox" checked={analyze} onChange={(e) => setAnalyze(e.target.checked)} className="accent-[var(--accent)]" />
-            Lancer l'analyse du brief après la création (1 appel au modèle de l'orchestrateur)
+            {t("Lancer l'analyse du brief après la création (1 appel au modèle de l'orchestrateur)")}
           </label>
           <Button variant="primary" size="lg" onClick={() => create.mutate()} disabled={!canCreate} loading={create.isPending}>
-            Créer la War Room
+            {t("Créer la War Room")}
           </Button>
         </div>
       </div>

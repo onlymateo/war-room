@@ -4,6 +4,7 @@ import { desc, eq, like, or, sql } from "drizzle-orm";
 import { db, schema } from "../db/client";
 import { body, badRequest } from "../lib/http";
 import { now } from "../lib/ids";
+import { serverLang } from "../lib/i18n";
 import { env } from "../env";
 import { listProviders } from "../providers/registry";
 import { statusOf } from "../mcp/manager";
@@ -26,6 +27,7 @@ const SETTINGS_SCHEMA = {
   "optimizer.routingModel": z.object({ providerId: z.string(), modelId: z.string() }).nullable(),
   "optimizer.summaryModel": z.object({ providerId: z.string(), modelId: z.string() }).nullable(),
   "user.displayName": z.string().max(80),
+  "ui.language": z.enum(["fr", "en"]),
 } as const;
 
 systemRoutes.get("/system/status", async (c) => {
@@ -62,6 +64,7 @@ systemRoutes.put("/settings/:key", async (c) => {
     .insert(schema.settings)
     .values({ key, value, updatedAt: now() })
     .onConflictDoUpdate({ target: schema.settings.key, set: { value, updatedAt: now() } });
+  if (key === "ui.language") await serverLang();
   return c.json({ key, value });
 });
 

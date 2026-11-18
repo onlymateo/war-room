@@ -35,6 +35,14 @@ export async function pickModel(tier: Tier, strategy: CostStrategy, preferredPro
   return pickModelFromList(models, usable, adjustTier(tier, strategy), preferredProvider);
 }
 
+/** French versions (UI language "fr"). */
+export const STRATEGY_EXPLANATIONS_FR: Record<CostStrategy, { label: string; tradeoff: string }> = {
+  quality: { label: "Qualité maximale", tradeoff: "Modèles premium et plus d'agents par question. Meilleures réponses, coût et latence les plus élevés." },
+  balanced: { label: "Équilibré", tradeoff: "Modèles premium seulement pour le raisonnement difficile, gamme intermédiaire ailleurs ; seuls les agents pertinents sont sollicités." },
+  economy: { label: "Économique", tradeoff: "Modèles moins chers, l'orchestrateur répond lui-même quand il le peut. Coût réduit, un peu moins de profondeur." },
+  strict: { label: "Budget strict", tradeoff: "Modèles les moins chers, un agent au maximum par question. Coût minimal ; réponses moins approfondies sur les sujets complexes." },
+};
+
 export const STRATEGY_EXPLANATIONS: Record<CostStrategy, { label: string; tradeoff: string }> = {
   quality: { label: "Maximum quality", tradeoff: "Premium models and more agents per question. Best answers, highest cost and latency." },
   balanced: { label: "Balanced", tradeoff: "Premium models only for hard reasoning, mid-tier elsewhere; only relevant agents are called." },

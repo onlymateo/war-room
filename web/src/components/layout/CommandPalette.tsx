@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, Search, CornerDownLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { NAV } from "./AppShell";
+import { t } from "@/i18n";
 
 interface SearchHit {
   type: string;
@@ -19,8 +20,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const navigate = useNavigate();
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(q), 180);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebounced(q), 180);
+    return () => clearTimeout(timer);
   }, [q]);
   useEffect(() => {
     if (!open) setQ("");
@@ -42,28 +43,28 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       <RDialog.Portal>
         <RDialog.Overlay className="fixed inset-0 z-50 bg-black/40" />
         <RDialog.Content className="fixed left-1/2 top-[14vh] z-50 w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl">
-          <RDialog.Title className="sr-only">Recherche globale</RDialog.Title>
-          <RDialog.Description className="sr-only">Rechercher dans WAR ROOM ou naviguer</RDialog.Description>
+          <RDialog.Title className="sr-only">{t("Recherche globale")}</RDialog.Title>
+          <RDialog.Description className="sr-only">{t("Rechercher dans WAR ROOM ou naviguer")}</RDialog.Description>
           <Command shouldFilter={false} className="flex flex-col">
             <div className="flex items-center gap-2 border-b border-border px-3">
               <Search className="size-4 text-fg-subtle" />
               <Command.Input
                 value={q}
                 onValueChange={setQ}
-                placeholder="Rechercher War Rooms, agents, messages, fichiers…"
+                placeholder={t("Rechercher War Rooms, agents, messages, fichiers…")}
                 className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-fg-subtle"
               />
             </div>
             <Command.List className="max-h-[50vh] overflow-y-auto p-1.5">
               <Command.Empty className="px-3 py-6 text-center text-xs text-fg-subtle">
-                {results.isFetching ? "Recherche…" : "Aucun résultat"}
+                {results.isFetching ? t("Recherche…") : t("Aucun résultat")}
               </Command.Empty>
               {q.trim().length < 2 ? (
                 <>
                   <Command.Group heading="Actions" className="text-[11px] text-fg-subtle [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
-                    <Item onSelect={() => go("/warrooms/new")} icon={<Plus />} label="Nouvelle War Room" />
-                    <Item onSelect={() => go("/chats?new=1")} icon={<Plus />} label="Nouveau chat" hint="Ctrl Shift O" />
-                    <Item onSelect={() => go("/projects?new=1")} icon={<Plus />} label="Nouveau projet" />
+                    <Item onSelect={() => go("/warrooms/new")} icon={<Plus />} label={t("Nouvelle War Room")} />
+                    <Item onSelect={() => go("/chats?new=1")} icon={<Plus />} label={t("Nouveau chat")} hint="Ctrl Shift O" />
+                    <Item onSelect={() => go("/projects?new=1")} icon={<Plus />} label={t("Nouveau projet")} />
                   </Command.Group>
                   <Command.Group heading="Navigation" className="text-[11px] text-fg-subtle [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
                     {NAV.map((n) => (

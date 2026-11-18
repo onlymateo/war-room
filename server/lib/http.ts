@@ -4,6 +4,7 @@ import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import type { RunEvent } from "../../shared/types";
 import { log } from "./logger";
+import { cachedLang } from "./i18n";
 
 export async function body<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T>> {
   let raw: unknown;
@@ -21,7 +22,12 @@ export async function body<T extends z.ZodType>(c: Context, schema: T): Promise<
 }
 
 export function notFound(what = "Resource"): never {
-  throw new HTTPException(404, { message: `${what} not found` });
+  throw new HTTPException(404, { message: cachedLang() === "en" ? `${what} not found` : `${what} introuvable` });
+}
+
+/** 404 with a complete, already-localized message. */
+export function notFoundMessage(message: string): never {
+  throw new HTTPException(404, { message });
 }
 
 export function badRequest(message: string): never {

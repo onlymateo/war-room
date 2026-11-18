@@ -38,6 +38,7 @@
 - **Prompt improvement**: "Améliorer" (Improve) button in every conversation; rewrite by a low-cost model with a short context excerpt, cost shown, approval before sending.
 - **Projects**: list, detail, Summary, Kanban, List and Timeline views, decisions, attaching War Rooms.
 - **Files and memory**: upload, preview, download, tags, text extraction (text, code, CSV, JSON, PDF, DOCX), structured memory by scope.
+- **Languages**: English and French interface (Settings, Language), with server-generated texts (reports, recaps, notices) following the same setting; a test checks that every UI string has an English translation.
 - **Interface**: dark and light themes, collapsible sidebar, global search (Ctrl K), keyboard shortcuts, toasts, empty states, per-page error handling.
 
 ## Not implemented yet

@@ -4,6 +4,7 @@ import { newId, now } from "../lib/ids";
 import { log } from "../lib/logger";
 import { logActivity } from "../activity/log";
 import type { PausedWorkDTO } from "../../shared/types";
+import { serverLang, tx } from "../lib/i18n";
 
 type Row = typeof schema.pausedWork.$inferSelect;
 
@@ -34,7 +35,8 @@ export async function createPausedWork(input: {
     updatedAt: ts,
   };
   await db.insert(schema.pausedWork).values(row);
-  await logActivity({ type: "limit_paused", summary: `Mis en pause (limite Claude) : ${row.title}`, warRoomId: row.warRoomId, agentId: row.agentId, data: { reason: row.reason, resetsAt: row.resetsAt } });
+  const lang = await serverLang();
+  await logActivity({ type: "limit_paused", summary: tx(lang, `Mis en pause (limite Claude) : ${row.title}`, `Paused (Claude limit): ${row.title}`), warRoomId: row.warRoomId, agentId: row.agentId, data: { reason: row.reason, resetsAt: row.resetsAt } });
   return row;
 }
 
@@ -88,9 +90,10 @@ export async function tickPausedWork() {
     if (!due.length) return;
     await db.update(schema.pausedWork).set({ status: "ready", updatedAt: now() }).where(inArray(schema.pausedWork.id, due.map((d) => d.id)));
     const rooms = [...new Set(due.map((d) => d.warRoomId))];
+    const lang = await serverLang();
     for (const room of rooms) {
       const n = due.filter((d) => d.warRoomId === room).length;
-      await logActivity({ type: "limit_reset", summary: `Limites Claude réinitialisées : ${n} travail(aux) en pause peuvent reprendre`, warRoomId: room });
+      await logActivity({ type: "limit_reset", summary: tx(lang, `Limites Claude réinitialisées : ${n} travail(aux) en pause peuvent reprendre`, `Claude limits reset: ${n} paused item(s) can resume`), warRoomId: room });
     }
   } catch (err) {
     log.warn("tickPausedWork failed", err);

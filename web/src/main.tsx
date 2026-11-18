@@ -1,4 +1,5 @@
-import { StrictMode, Suspense, lazy } from "react";
+import { StrictMode, Suspense, lazy, useEffect, useState, type ReactNode } from "react";
+import { getLang, onLangChange, t } from "./i18n";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -41,11 +42,25 @@ function RoutedBoundary({ children }: { children: React.ReactNode }) {
 }
 
 function NotFound() {
-  return <div className="p-10 text-sm text-fg-muted">Page introuvable.</div>;
+  return <div className="p-10 text-sm text-fg-muted">{t("Page introuvable.")}</div>;
+}
+
+/** Re-mounts the whole app when the language changes, so every t() call re-renders. */
+function LangRoot({ children }: { children: ReactNode }) {
+  const [lang, setLangState] = useState(getLang());
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    const off = onLangChange(setLangState);
+    return () => {
+      off();
+    };
+  }, [lang]);
+  return <div key={lang} className="contents">{children}</div>;
 }
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
+    <LangRoot>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <BrowserRouter>
@@ -78,5 +93,6 @@ createRoot(document.getElementById("root")!).render(
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
+    </LangRoot>
   </StrictMode>,
 );

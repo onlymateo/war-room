@@ -9,6 +9,7 @@ import { assertClaudeAvailable, LimitPausedError } from "../limits/guard";
 import { createPausedWork } from "../limits/store";
 import type { ChatTurn } from "../providers/types";
 import type { CollectiveMode, RoutingPlan, RunEvent } from "../../shared/types";
+import { serverLang, tx, type Lang } from "../lib/i18n";
 import {
   agentSystemPrompt,
   agentTaskInstruction,
@@ -57,25 +58,31 @@ interface Run {
   maxCalls: number;
   agentNames: Map<string, string>;
   paused: { error: LimitPausedError; stage: CollectivePausePayload["stage"]; steps: Step[] } | null;
+  lang: Lang;
 }
 
 export async function loadRoom(warRoomId: string) {
+  const lang = await serverLang();
   const room = await db.query.warRooms.findFirst({ where: eq(schema.warRooms.id, warRoomId) });
-  if (!room) throw new OrchestrationError("War Room not found");
+  if (!room) throw new OrchestrationError(tx(lang, "War Room introuvable", "War Room not found"));
   const agents = await db.select().from(schema.agents).where(eq(schema.agents.warRoomId, warRoomId)).orderBy(asc(schema.agents.position));
   const orch = agents.find((a) => a.role === "orchestrator");
-  if (!orch) throw new OrchestrationError("This War Room has no orchestrator.");
+  if (!orch) throw new OrchestrationError(tx(lang, "Cette War Room n'a pas d'orchestrateur.", "This War Room has no orchestrator."));
   const conv = await db.query.conversations.findFirst({
     where: and(eq(schema.conversations.warRoomId, warRoomId), eq(schema.conversations.kind, "warroom")),
   });
-  if (!conv) throw new OrchestrationError("Collective conversation missing");
-  return { room, agents, orch, conv };
+  if (!conv) throw new OrchestrationError(tx(lang, "Conversation collective manquante", "Collective conversation missing"));
+  return { room, agents, orch, conv, lang };
 }
 
-export function setupFor(agent: Agent, run: Pick<Run, "room" | "agents" | "orch">, system: string): ModelSetup {
+export function setupFor(agent: Agent, run: Pick<Run, "room" | "agents" | "orch"> & { lang?: Lang }, system: string): ModelSetup {
   const providerId = agent.providerId ?? run.orch.providerId;
   const modelId = agent.modelId ?? run.orch.modelId;
-  if (!providerId || !modelId) throw new OrchestrationError(`${agent.name} has no model. Assign one in the agent settings.`);
+  if (!providerId || !modelId) {
+    throw new OrchestrationError(
+      tx(run.lang ?? "fr", `${agent.name} n'a pas de modèle. Attribuez-en un dans les réglages de l'agent.`, `${agent.name} has no model. Assign one in the agent settings.`),
+    );
+  }
   return {
     providerId,
     modelId,
@@ -90,20 +97,27 @@ export function setupFor(agent: Agent, run: Pick<Run, "room" | "agents" | "orch"
 /** Model setup for a direct conversation with one agent (individual chat). */
 export async function agentChatSetup(agentId: string): Promise<ModelSetup> {
   const agent = await db.query.agents.findFirst({ where: eq(schema.agents.id, agentId) });
-  if (!agent) throw new OrchestrationError("Agent introuvable");
+  const lang = await serverLang();
+  if (!agent) throw new OrchestrationError(tx(lang, "Agent introuvable", "Agent not found"));
   if (agent.warRoomId) {
     const { room, agents, orch } = await loadRoom(agent.warRoomId);
     const system = agentSystemPrompt(agent, room, agents, agent.role === "orchestrator" ? null : orch.name);
-    return setupFor(agent, { room, agents, orch }, system);
+    return setupFor(agent, { room, agents, orch, lang }, system);
   }
-  if (!agent.providerId || !agent.modelId) throw new OrchestrationError("This agent has no model.");
+  if (!agent.providerId || !agent.modelId) throw new OrchestrationError(tx(lang, "Cet agent n'a pas de modèle.", "This agent has no model."));
   return { providerId: agent.providerId, modelId: agent.modelId, system: agentSystemPrompt(agent, null, [], null), params: agent.params, agentId: agent.id };
 }
 
 function countCall(run: Run) {
   run.calls++;
   if (run.calls > run.maxCalls) {
-    throw new OrchestrationError(`Safety stop: more than ${run.maxCalls} model calls for one message. Adjust "orchestration.maxCallsPerRun" in Settings if this is intended.`);
+    throw new OrchestrationError(
+      tx(
+        run.lang,
+        `Arrêt de sécurité : plus de ${run.maxCalls} appels de modèle pour un seul message. Ajustez « orchestration.maxCallsPerRun » dans les Réglages si c'est voulu.`,
+        `Safety stop: more than ${run.maxCalls} model calls for one message. Adjust "orchestration.maxCallsPerRun" in Settings if this is intended.`,
+      ),
+    );
   }
 }
 
@@ -146,7 +160,10 @@ async function settlePausedMessage(run: Run, msg: MessageRow | null) {
     run.emit({ type: "message_done", message: { ...toMessageDTO(current), status: "aborted", content: "", meta: { ...current.meta, kind: "note" } } });
     return;
   }
-  const row = await updateMessage(msg.id, { status: "aborted", error: "Interrompu : limite Claude. La tâche reprendra après la réinitialisation." });
+  const row = await updateMessage(msg.id, {
+    status: "aborted",
+    error: tx(run.lang, "Interrompu : limite Claude. La tâche reprendra après la réinitialisation.", "Interrupted: Claude limit. The task will resume after the reset."),
+  });
   run.emit({ type: "message_done", message: toMessageDTO(row) });
 }
 
@@ -272,7 +289,16 @@ async function route(run: Run, userText: string): Promise<RoutingPlan> {
       .filter((s, i, arr) => arr.findIndex((x) => x.agentId === s.agentId) === i)
       .slice(0, run.room.maxAgentsPerTurn);
     if (!parsed) {
-      return { reasoning: "The orchestrator's routing reply could not be parsed; it will answer directly.", answerDirectly: true, steps: [], synthesize: false };
+      return {
+        reasoning: tx(
+          run.lang,
+          "La réponse de routage de l'orchestrateur n'a pas pu être analysée ; il répondra directement.",
+          "The orchestrator's routing reply could not be parsed; it will answer directly.",
+        ),
+        answerDirectly: true,
+        steps: [],
+        synthesize: false,
+      };
     }
     return {
       reasoning: String(parsed.reasoning ?? ""),
@@ -337,13 +363,16 @@ async function runSteps(run: Run, steps: Step[], userMsg: MessageRow) {
     if (r.paused) {
       markPaused(run, r.paused, "steps", { ...step, taskId });
       if (taskId) {
-        await db.update(schema.tasks).set({ status: "blocked", result: "En pause : limite Claude. Reprise possible après la réinitialisation.", updatedAt: now() }).where(eq(schema.tasks.id, taskId));
+        await db
+          .update(schema.tasks)
+          .set({ status: "blocked", result: tx(run.lang, "En pause : limite Claude. Reprise possible après la réinitialisation.", "Paused: Claude limit. Can resume after the reset."), updatedAt: now() })
+          .where(eq(schema.tasks.id, taskId));
       }
       return;
     }
     if (taskId) {
       await db.update(schema.tasks).set({ status: r.ok ? "done" : "blocked", result: r.text.slice(0, 4000), updatedAt: now() }).where(eq(schema.tasks.id, taskId));
-      await logActivity({ type: r.ok ? "task_done" : "task_failed", summary: `${agent.name} ${r.ok ? "finished" : "failed"}`, warRoomId: run.room.id, agentId: agent.id });
+      await logActivity({ type: r.ok ? "task_done" : "task_failed", summary: r.ok ? tx(run.lang, `${agent.name} a terminé`, `${agent.name} finished`) : tx(run.lang, `${agent.name} a échoué`, `${agent.name} failed`), warRoomId: run.room.id, agentId: agent.id });
     }
   });
 }
@@ -390,7 +419,7 @@ export interface CollectiveInput {
 }
 
 async function buildRun(warRoomId: string, emit: (e: RunEvent) => void, signal: AbortSignal) {
-  const { room, agents, orch, conv } = await loadRoom(warRoomId);
+  const { room, agents, orch, conv, lang } = await loadRoom(warRoomId);
   const run: Run = {
     room,
     agents,
@@ -402,6 +431,7 @@ async function buildRun(warRoomId: string, emit: (e: RunEvent) => void, signal: 
     maxCalls: await getSetting<number>("orchestration.maxCallsPerRun", DEFAULT_MAX_CALLS_PER_RUN),
     agentNames: new Map(agents.map((a) => [a.id, a.name])),
     paused: null,
+    lang,
   };
   return { run, conv };
 }
@@ -422,7 +452,7 @@ async function dispatch(run: Run, input: Omit<CollectiveInput, "warRoomId">, use
         const plan = await route(run, input.content);
         await logActivity({
           type: "routing",
-          summary: plan.steps.length ? `${orch.name} → ${plan.steps.map((s) => s.agentName).join(", ")}` : `${orch.name} answers directly`,
+          summary: plan.steps.length ? `${orch.name} → ${plan.steps.map((s) => s.agentName).join(", ")}` : tx(run.lang, `${orch.name} répond directement`, `${orch.name} answers directly`),
           warRoomId: room.id,
           agentId: orch.id,
           data: { reasoning: plan.reasoning },
@@ -441,7 +471,11 @@ async function dispatch(run: Run, input: Omit<CollectiveInput, "warRoomId">, use
         });
         run.emit({ type: "plan", message: toMessageDTO(planMsg) });
         if (approval) {
-          run.emit({ type: "notice", level: "info", text: `${orch.name} is waiting for your approval before dispatching the work.` });
+          run.emit({
+            type: "notice",
+            level: "info",
+            text: tx(run.lang, `${orch.name} attend votre accord avant de répartir le travail.`, `${orch.name} is waiting for your approval before dispatching the work.`),
+          });
           break;
         }
         await executeSteps(run, plan.steps.map((s) => ({ agentId: s.agentId, instruction: s.instruction, kind: "agent_reply" as const })), userMsg, plan.synthesize);
@@ -450,17 +484,31 @@ async function dispatch(run: Run, input: Omit<CollectiveInput, "warRoomId">, use
       case "direct":
       case "all": {
         const targets = input.mode === "all" ? team : selected;
-        if (targets.length === 0) throw new OrchestrationError(input.mode === "all" ? "This War Room has no agents yet." : "Select at least one agent.");
+        if (targets.length === 0) {
+          throw new OrchestrationError(
+            input.mode === "all"
+              ? tx(run.lang, "Cette War Room n'a pas encore d'agents.", "This War Room has no agents yet.")
+              : tx(run.lang, "Sélectionnez au moins un agent.", "Select at least one agent."),
+          );
+        }
         if (input.mode === "all" && targets.length > 4) {
-          run.emit({ type: "notice", level: "warning", text: `Forcing all ${targets.length} agents to answer: ${targets.length} model calls.` });
+          run.emit({
+            type: "notice",
+            level: "warning",
+            text: tx(
+              run.lang,
+              `Réponse forcée des ${targets.length} agents : ${targets.length} appels de modèle.`,
+              `Forcing all ${targets.length} agents to answer: ${targets.length} model calls.`,
+            ),
+          });
         }
         await executeSteps(run, targets.map((a) => ({ agentId: a.id, instruction: null, kind: "direct_answer" as const })), userMsg, input.synthesize);
         break;
       }
       case "debate": {
         const participants = (selected.length ? selected : team).slice(0, Math.max(2, room.maxAgentsPerTurn));
-        if (participants.length < 2) throw new OrchestrationError("A debate needs at least two agents.");
-        await logActivity({ type: "debate", summary: `Debate: ${participants.map((a) => a.name).join(" vs ")}`, warRoomId: room.id });
+        if (participants.length < 2) throw new OrchestrationError(tx(run.lang, "Un débat nécessite au moins deux agents.", "A debate needs at least two agents."));
+        await logActivity({ type: "debate", summary: tx(run.lang, `Débat : ${participants.map((a) => a.name).join(" contre ")}`, `Debate: ${participants.map((a) => a.name).join(" vs ")}`), warRoomId: room.id });
         const round1 = await parallel(participants, 3, (agent) =>
           agentTurn(run, agent, `Debate round 1. Give your position on:\n\n${input.content}`, { attachmentIds: input.attachmentIds, excludeIds: [userMsg.id], kind: "debate_round", round: 1 }),
         );
@@ -517,12 +565,17 @@ async function finalizePause(run: Run, input: Omit<CollectiveInput, "warRoomId" 
     steps: p.stage === "steps" ? p.steps : undefined,
     synthesize: (p as { synthesize?: boolean }).synthesize ?? input.synthesize,
   };
-  const pending = p.stage === "steps" ? `${p.steps.length} mission(s) d'agent` : p.stage === "synthesis" ? "la synthèse" : "le traitement du message";
+  const pending =
+    p.stage === "steps"
+      ? tx(run.lang, `${p.steps.length} mission(s) d'agent`, `${p.steps.length} agent task(s)`)
+      : p.stage === "synthesis"
+        ? tx(run.lang, "la synthèse", "the synthesis")
+        : tx(run.lang, "le traitement du message", "processing the message");
   const pw = await createPausedWork({
     kind: "collective",
     warRoomId: run.room.id,
     conversationId: run.conversationId,
-    title: `${run.room.name} : ${userMsg.content.replace(/\s+/g, " ").slice(0, 80) || "message"} (${pending})`,
+    title: `${run.room.name}${tx(run.lang, " :", ":")} ${userMsg.content.replace(/\s+/g, " ").slice(0, 80) || "message"} (${pending})`,
     payload,
     reason: p.error.message,
     resetsAt: p.error.resumeAt,
@@ -530,7 +583,11 @@ async function finalizePause(run: Run, input: Omit<CollectiveInput, "warRoomId" 
   run.emit({
     type: "notice",
     level: "warning",
-    text: `${p.error.message} En pause : ${pending}. WAR ROOM vous proposera de reprendre après la réinitialisation.`,
+    text: tx(
+      run.lang,
+      `${p.error.message} En pause : ${pending}. WAR ROOM vous proposera de reprendre après la réinitialisation.`,
+      `${p.error.message} Paused: ${pending}. WAR ROOM will offer to resume after the reset.`,
+    ),
   });
   return pw;
 }
@@ -545,7 +602,7 @@ export async function runCollective(input: CollectiveInput, emit: (e: RunEvent) 
     meta: { mode: input.mode },
   });
   emit({ type: "message_created", message: toMessageDTO(userMsg) });
-  await logActivity({ type: "user_message", summary: input.content.slice(0, 160) || "(attachments)", warRoomId: run.room.id });
+  await logActivity({ type: "user_message", summary: input.content.slice(0, 160) || tx(run.lang, "(pièces jointes)", "(attachments)"), warRoomId: run.room.id });
 
   await dispatch(run, input, userMsg);
   await finalizePause(run, input, userMsg);
@@ -557,12 +614,12 @@ export async function runCollective(input: CollectiveInput, emit: (e: RunEvent) 
 
 /** Resume collective work paused by the quota guard, from where it stopped. */
 export async function resumeCollective(pw: typeof schema.pausedWork.$inferSelect, emit: (e: RunEvent) => void, signal: AbortSignal) {
-  if (!pw.warRoomId) throw new OrchestrationError("War Room introuvable");
+  if (!pw.warRoomId) throw new OrchestrationError(tx(await serverLang(), "War Room introuvable", "War Room not found"));
   const payload = pw.payload as CollectivePausePayload;
   const { run } = await buildRun(pw.warRoomId, emit, signal);
   const userMsg = await db.query.messages.findFirst({ where: eq(schema.messages.id, payload.userMessageId) });
-  if (!userMsg) throw new OrchestrationError("Le message d'origine n'existe plus.");
-  await logActivity({ type: "limit_resumed", summary: `Reprise après limite Claude : ${pw.title}`, warRoomId: run.room.id });
+  if (!userMsg) throw new OrchestrationError(tx(run.lang, "Le message d'origine n'existe plus.", "The original message no longer exists."));
+  await logActivity({ type: "limit_resumed", summary: tx(run.lang, `Reprise après limite Claude : ${pw.title}`, `Resumed after Claude limit: ${pw.title}`), warRoomId: run.room.id });
   const input = { ...payload.input, content: userMsg.content, attachmentIds: userMsg.attachmentIds };
   if (payload.stage === "steps" && payload.steps?.length) {
     await executeSteps(run, payload.steps, userMsg, !!payload.synthesize);
@@ -579,15 +636,15 @@ export async function decidePlan(warRoomId: string, planMessageId: string, appro
   const { run, conv } = await buildRun(warRoomId, emit, signal);
   const planMsg = await db.query.messages.findFirst({ where: eq(schema.messages.id, planMessageId) });
   if (!planMsg || planMsg.conversationId !== conv.id || planMsg.meta.kind !== "plan" || !planMsg.meta.plan) {
-    throw new OrchestrationError("Plan not found");
+    throw new OrchestrationError(tx(run.lang, "Plan introuvable", "Plan not found"));
   }
-  if (planMsg.meta.planStatus !== "pending_approval") throw new OrchestrationError("This plan was already handled.");
+  if (planMsg.meta.planStatus !== "pending_approval") throw new OrchestrationError(tx(run.lang, "Ce plan a déjà été traité.", "This plan was already handled."));
   const updated = await updateMessage(planMsg.id, { meta: { ...planMsg.meta, planStatus: approve ? "approved" : "rejected" } });
   emit({ type: "message_done", message: toMessageDTO(updated) });
-  await logActivity({ type: approve ? "plan_approved" : "plan_rejected", summary: `Plan ${approve ? "approved" : "rejected"} by user`, warRoomId: run.room.id });
+  await logActivity({ type: approve ? "plan_approved" : "plan_rejected", summary: approve ? tx(run.lang, "Plan approuvé par l'utilisateur", "Plan approved by user") : tx(run.lang, "Plan refusé par l'utilisateur", "Plan rejected by user"), warRoomId: run.room.id });
   if (!approve) return;
   const userMsg = planMsg.meta.userMessageId ? await db.query.messages.findFirst({ where: eq(schema.messages.id, planMsg.meta.userMessageId) }) : null;
-  if (!userMsg) throw new OrchestrationError("Original message not found");
+  if (!userMsg) throw new OrchestrationError(tx(run.lang, "Message d'origine introuvable", "Original message not found"));
   // Re-validate agents (they may have been removed meanwhile).
   const plan: RoutingPlan = { ...planMsg.meta.plan, steps: planMsg.meta.plan.steps.filter((s) => run.agents.some((a) => a.id === s.agentId)) };
   await executeSteps(run, plan.steps.map((s) => ({ agentId: s.agentId, instruction: s.instruction, kind: "agent_reply" as const })), userMsg, plan.synthesize);

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { db, schema } from "../db/client";
-import { badRequest, body, notFound, sseRun } from "../lib/http";
+import { badRequest, body, notFound, notFoundMessage, sseRun } from "../lib/http";
 import { log } from "../lib/logger";
 import { now } from "../lib/ids";
 import { getLimitState, GUARDED_PROVIDER } from "./guard";
@@ -14,6 +14,7 @@ import { createReport } from "../warrooms/reports";
 import { callModel } from "../runtime/llm";
 import { getModel } from "../providers/registry";
 import type { RunEvent } from "../../shared/types";
+import { serverLang, tx } from "../lib/i18n";
 
 export const limitRoutes = new Hono();
 
@@ -23,8 +24,9 @@ limitRoutes.get("/limits/paused", async (c) => c.json(await toPausedDTO(await li
 
 async function resumeOne(id: string, emit: (e: RunEvent) => void, signal: AbortSignal) {
   const pw = await db.query.pausedWork.findFirst({ where: eq(schema.pausedWork.id, id) });
-  if (!pw) throw new Error("Travail en pause introuvable");
-  if (pw.status !== "paused" && pw.status !== "ready") throw new Error("Ce travail a déjà été repris ou annulé.");
+  const lang = await serverLang();
+  if (!pw) throw new Error(tx(lang, "Travail en pause introuvable", "Paused work not found"));
+  if (pw.status !== "paused" && pw.status !== "ready") throw new Error(tx(lang, "Ce travail a déjà été repris ou annulé.", "This work has already been resumed or cancelled."));
   // Mark first so a second click cannot run it twice; a new pause creates a new entry.
   await setPausedStatus(pw.id, "resumed");
   if (pw.kind === "collective") {
@@ -32,7 +34,7 @@ async function resumeOne(id: string, emit: (e: RunEvent) => void, signal: AbortS
     return;
   }
   const conv = await db.query.conversations.findFirst({ where: eq(schema.conversations.id, pw.conversationId) });
-  if (!conv) throw new Error("Conversation introuvable");
+  if (!conv) throw new Error(tx(lang, "Conversation introuvable", "Conversation not found"));
   const setup =
     conv.kind === "agent" && conv.agentId
       ? await agentChatSetup(conv.agentId)
@@ -43,16 +45,17 @@ async function resumeOne(id: string, emit: (e: RunEvent) => void, signal: AbortS
 /** Resume one paused item, streaming its events (used from the page where it happens). */
 limitRoutes.post("/limits/paused/:id/resume", async (c) => {
   const id = c.req.param("id");
-  if (!(await db.query.pausedWork.findFirst({ where: eq(schema.pausedWork.id, id) }))) notFound("Travail en pause");
+  if (!(await db.query.pausedWork.findFirst({ where: eq(schema.pausedWork.id, id) }))) notFound(tx(await serverLang(), "Travail en pause", "Paused work"));
   return sseRun(c, (emit, signal) => resumeOne(id, emit, signal));
 });
 
 /** Resume everything that is ready, one after the other, in the background. */
 let resumingAll = false;
 limitRoutes.post("/limits/paused/resume-all", async (c) => {
-  if (resumingAll) return c.json({ started: false, reason: "Une reprise est déjà en cours." });
+  const lang = await serverLang();
+  if (resumingAll) return c.json({ started: false, reason: tx(lang, "Une reprise est déjà en cours.", "A resume is already in progress.") });
   const ready = (await listPausedWork(["ready"])).sort((a, b) => a.createdAt - b.createdAt);
-  if (!ready.length) return c.json({ started: false, reason: "Rien à reprendre." });
+  if (!ready.length) return c.json({ started: false, reason: tx(lang, "Rien à reprendre.", "Nothing to resume.") });
   resumingAll = true;
   const ac = new AbortController();
   void (async () => {
@@ -71,7 +74,7 @@ limitRoutes.post("/limits/paused/resume-all", async (c) => {
 
 limitRoutes.post("/limits/paused/:id/cancel", async (c) => {
   const pw = await db.query.pausedWork.findFirst({ where: eq(schema.pausedWork.id, c.req.param("id")) });
-  if (!pw) notFound("Travail en pause");
+  if (!pw) notFound(tx(await serverLang(), "Travail en pause", "Paused work"));
   await setPausedStatus(pw!.id, "cancelled");
   return c.json({ ok: true });
 });
@@ -134,7 +137,7 @@ limitRoutes.get("/warrooms/:id/reports", async (c) => {
 
 limitRoutes.get("/warrooms/:id/reports/:reportId", async (c) => {
   const row = await db.query.roomReports.findFirst({ where: eq(schema.roomReports.id, c.req.param("reportId")) });
-  if (!row || row.warRoomId !== c.req.param("id")) notFound("Rapport");
+  if (!row || row.warRoomId !== c.req.param("id")) notFound(tx(await serverLang(), "Rapport", "Report"));
   return c.json(row);
 });
 
@@ -145,7 +148,7 @@ limitRoutes.post("/warrooms/:id/reports", async (c) => {
   try {
     return c.json(await createReport(c.req.param("id"), "manual", end - input.hours * 3_600_000, end));
   } catch (err) {
-    notFound(err instanceof Error ? err.message : "War Room");
+    notFoundMessage(err instanceof Error ? err.message : "War Room");
   }
 });
 
@@ -155,20 +158,22 @@ limitRoutes.get("/warrooms/:id/recap", async (c) => {
   try {
     return c.json(await buildRecap(c.req.param("id")));
   } catch (err) {
-    notFound(err instanceof Error ? err.message : "War Room");
+    notFoundMessage(err instanceof Error ? err.message : "War Room");
   }
 });
 
 /** Optional AI-written handoff, using a model the user chooses (e.g. another provider when Claude is limited). */
 limitRoutes.post("/warrooms/:id/recap/ai", async (c) => {
   const input = await body(c, z.object({ providerId: z.string(), modelId: z.string(), audience: z.string().max(200).optional() }));
-  if (!(await getModel(input.providerId, input.modelId))) badRequest("Modèle inconnu");
+  if (!(await getModel(input.providerId, input.modelId))) badRequest(tx(await serverLang(), "Modèle inconnu", "Unknown model"));
   const recap = await buildRecap(c.req.param("id"), { recentMessages: 30 });
   const result = await callModel({
     providerId: input.providerId,
     modelId: input.modelId,
     system:
-      "You write handoff briefs so another AI assistant can continue a project without any other context. Write in French. Be factual: use only the information given, never invent. Structure: 1) Le projet en bref, 2) Où on en est (fait / en cours / en pause), 3) Décisions et contraintes à respecter, 4) Prochaines étapes concrètes, 5) Questions ouvertes, 6) Un prompt prêt à coller pour démarrer. Keep it under 900 words.",
+      (await serverLang()) === "en"
+        ? "You write handoff briefs so another AI assistant can continue a project without any other context. Write in English. Be factual: use only the information given, never invent. Structure: 1) The project in brief, 2) Where things stand (done / in progress / paused), 3) Decisions and constraints to respect, 4) Concrete next steps, 5) Open questions, 6) A ready-to-paste prompt to get started. Keep it under 900 words."
+        : "You write handoff briefs so another AI assistant can continue a project without any other context. Write in French. Be factual: use only the information given, never invent. Structure: 1) Le projet en bref, 2) Où on en est (fait / en cours / en pause), 3) Décisions et contraintes à respecter, 4) Prochaines étapes concrètes, 5) Questions ouvertes, 6) Un prompt prêt à coller pour démarrer. Keep it under 900 words.",
     messages: [{ role: "user", content: [{ type: "text", text: `${input.audience ? `Destinataire : ${input.audience}\n\n` : ""}<project_data>\n${recap.markdown}\n</project_data>` }] }],
     params: { effort: "low", maxTokens: 6000 },
     context: { warRoomId: c.req.param("id"), purpose: "summary" },

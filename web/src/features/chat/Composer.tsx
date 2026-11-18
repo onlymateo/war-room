@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/primitives";
 import { CostTag } from "@/components/domain";
 import type { FileDTO, UsageSummary } from "@shared/types";
+import { t } from "@/i18n";
 
 export function fileIcon(mime: string) {
   if (mime.startsWith("image/")) return <ImageIcon />;
@@ -27,7 +28,7 @@ export function Composer({
   running,
   disabled,
   disabledReason,
-  placeholder = "Écrire un message…",
+  placeholder,
   scope,
   toolbar,
   allowEmpty,
@@ -90,7 +91,7 @@ export function Composer({
         const [stored] = await api.upload<FileDTO[]>("/files", form);
         setFiles((prev) => [...prev, stored]);
       } catch (err) {
-        toast.error(`${f.name} : ${err instanceof Error ? err.message : String(err)}`);
+        toast.error(t("{name} : {error}", { name: f.name, error: err instanceof Error ? err.message : String(err) }));
       } finally {
         setUploading((n) => n - 1);
       }
@@ -147,14 +148,14 @@ export function Composer({
               {fileIcon(f.mime)}
               <span className="max-w-40 truncate text-fg">{f.name}</span>
               <span className="text-fg-subtle">{fmtBytes(f.size)}</span>
-              <button onClick={() => setFiles((prev) => prev.filter((x) => x.id !== f.id))} className="rounded p-0.5 hover:bg-surface-3" aria-label="Retirer">
+              <button onClick={() => setFiles((prev) => prev.filter((x) => x.id !== f.id))} className="rounded p-0.5 hover:bg-surface-3" aria-label={t("Retirer")}>
                 <X />
               </button>
             </span>
           ))}
           {uploading ? (
             <span className="flex h-7 items-center gap-1.5 px-2 text-xs text-fg-subtle">
-              <Loader2 className="size-3.5 animate-spin" /> Envoi…
+              <Loader2 className="size-3.5 animate-spin" /> {t("Envoi…")}
             </span>
           ) : null}
         </div>
@@ -163,7 +164,7 @@ export function Composer({
         <div className="border-b border-border bg-accent-soft/50 px-3 py-2.5">
           <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-muted">
             <span className="flex items-center gap-1 font-medium text-fg">
-              <WandSparkles className="size-3.5 text-accent" /> Prompt amélioré
+              <WandSparkles className="size-3.5 text-accent" /> {t("Prompt amélioré")}
             </span>
             <span>{suggestion.modelId}</span>
             <span className="tabular-nums">
@@ -183,10 +184,10 @@ export function Composer({
                 taRef.current?.focus();
               }}
             >
-              <Check /> Utiliser
+              <Check /> {t("Utiliser")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setSuggestion(null)}>
-              Garder l'original
+              {t("Garder l'original")}
             </Button>
           </div>
         </div>
@@ -203,37 +204,37 @@ export function Composer({
         onPaste={onPaste}
         rows={1}
         disabled={disabled}
-        placeholder={disabled && disabledReason ? disabledReason : placeholder}
+        placeholder={disabled && disabledReason ? disabledReason : (placeholder ?? t("Écrire un message…"))}
         className="block max-h-[280px] min-h-[52px] w-full resize-none bg-transparent px-4 pt-3.5 pb-1 text-[13.5px] leading-relaxed outline-none placeholder:text-fg-subtle"
       />
       <div className="flex items-center gap-2 px-2.5 pb-2.5">
         <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => e.target.files && void upload(e.target.files).then(() => (e.target.value = ""))} />
-        <Tooltip content="Joindre des fichiers (ou glisser-déposer, coller une image)">
-          <Button variant="ghost" size="icon-sm" onClick={() => inputRef.current?.click()} disabled={disabled} aria-label="Joindre">
+        <Tooltip content={t("Joindre des fichiers (ou glisser-déposer, coller une image)")}>
+          <Button variant="ghost" size="icon-sm" onClick={() => inputRef.current?.click()} disabled={disabled} aria-label={t("Joindre")}>
             <Paperclip />
           </Button>
         </Tooltip>
         {improve ? (
-          <Tooltip content="Réécrire le message avec un modèle économique avant l'envoi (vous validez avant)">
+          <Tooltip content={t("Réécrire le message avec un modèle économique avant l'envoi (vous validez avant)")}>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => void runImprove()}
               disabled={disabled || improving || running || text.trim().length < 12}
-              aria-label="Améliorer le prompt"
+              aria-label={t("Améliorer le prompt")}
             >
               {improving ? <Loader2 className="animate-spin" /> : <WandSparkles />}
-              <span className="hidden sm:inline">Améliorer</span>
+              <span className="hidden sm:inline">{t("Améliorer")}</span>
             </Button>
           </Tooltip>
         ) : null}
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">{toolbar}</div>
         {running ? (
           <Button variant="secondary" size="sm" onClick={onStop}>
-            <Square className="!size-3 fill-current" /> Arrêter
+            <Square className="!size-3 fill-current" /> {t("Arrêter")}
           </Button>
         ) : (
-          <Button variant="primary" size="icon-sm" onClick={() => void send()} disabled={!canSend} aria-label="Envoyer">
+          <Button variant="primary" size="icon-sm" onClick={() => void send()} disabled={!canSend} aria-label={t("Envoyer")}>
             <ArrowUp />
           </Button>
         )}

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, Tabs } from "@/components/ui/primitives";
 import { CostTag, ModelPicker } from "@/components/domain";
 import { Markdown } from "../chat/Markdown";
+import { t } from "@/i18n";
 
 function download(name: string, text: string) {
   const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
@@ -41,16 +42,16 @@ export function RecapDialog({ warRoomId, open, onOpenChange }: { warRoomId: stri
       open={open}
       onOpenChange={onOpenChange}
       size="xl"
-      title="Récapitulatif de contexte"
-      description="À transmettre à une autre IA ou à une personne pour reprendre le projet."
+      title={t("Récapitulatif de contexte")}
+      description={t("À transmettre à une autre IA ou à une personne pour reprendre le projet.")}
       footer={
         current ? (
           <>
-            <Button variant="ghost" onClick={() => navigator.clipboard.writeText(current.markdown).then(() => toast.success("Copié"))}>
-              <Copy /> Copier
+            <Button variant="ghost" onClick={() => navigator.clipboard.writeText(current.markdown).then(() => toast.success(t("Copié")))}>
+              <Copy /> {t("Copier")}
             </Button>
             <Button variant="secondary" onClick={() => download(current.title, current.markdown)}>
-              <Download /> Télécharger (.md)
+              <Download /> {t("Télécharger (.md)")}
             </Button>
           </>
         ) : undefined
@@ -61,17 +62,17 @@ export function RecapDialog({ warRoomId, open, onOpenChange }: { warRoomId: stri
         onValueChange={setTab}
         className="-mx-5 -mt-4 mb-4 px-5"
         items={[
-          { value: "data", label: "À partir des données (gratuit)" },
-          { value: "ai", label: "Rédigé par une IA" },
+          { value: "data", label: t("À partir des données (gratuit)") },
+          { value: "ai", label: t("Rédigé par une IA") },
         ]}
       />
       {tab === "data" ? (
         recap.isLoading ? (
-          <p className="text-sm text-fg-muted">Construction du récapitulatif…</p>
+          <p className="text-sm text-fg-muted">{t("Construction du récapitulatif…")}</p>
         ) : recap.data ? (
           <Markdown text={recap.data.markdown} />
         ) : (
-          <p className="text-sm text-danger">Impossible de construire le récapitulatif.</p>
+          <p className="text-sm text-danger">{t("Impossible de construire le récapitulatif.")}</p>
         )
       ) : (
         <div className="space-y-4">
@@ -80,11 +81,11 @@ export function RecapDialog({ warRoomId, open, onOpenChange }: { warRoomId: stri
               <ModelPicker providerId={model.providerId} modelId={model.modelId} onChange={(providerId, modelId) => setModel({ providerId, modelId })} />
             </div>
             <Button variant="primary" onClick={() => ai.mutate()} loading={ai.isPending} disabled={!model.modelId}>
-              <WandSparkles /> Générer
+              <WandSparkles /> {t("Générer")}
             </Button>
           </div>
           <p className="text-xs text-fg-muted">
-            Un seul appel au modèle choisi, avec le récapitulatif « données » en entrée. {claudePaused ? "Claude est actuellement en pause : choisissez un autre fournisseur ou un modèle local." : ""}
+            {t("Un seul appel au modèle choisi, avec le récapitulatif « données » en entrée.")} {claudePaused ? t("Claude est actuellement en pause : choisissez un autre fournisseur ou un modèle local.") : ""}
           </p>
           {ai.data ? (
             <>

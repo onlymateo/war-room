@@ -11,6 +11,7 @@ import type { Activity, Conversation, Project, Task, WarRoom } from "@/lib/types
 import { SubscriptionQuota, type BudgetsData } from "./shared";
 import { Badge, Card, CardHeader, EmptyState, Page, PageHeader, Progress, Skeleton, Stat, StatusDot } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 
 interface DashboardData {
   rooms: WarRoom[];
@@ -32,6 +33,10 @@ function ListLink({ to, children }: { to: string; children: React.ReactNode }) {
       {children}
     </Link>
   );
+}
+
+function scopeLabel(scope: string) {
+  return SCOPE_LABEL[scope] ? t(SCOPE_LABEL[scope]) : undefined;
 }
 
 function convHref(c: Conversation) {
@@ -70,7 +75,7 @@ export default function DashboardPage() {
     return (
       <Page>
         <PageHeader title="Dashboard" icon={<LayoutDashboard />} />
-        <EmptyState icon={<AlertTriangle />} title="Impossible de charger le dashboard" description={(dash.error as Error).message} />
+        <EmptyState icon={<AlertTriangle />} title={t("Impossible de charger le dashboard")} description={(dash.error as Error).message} />
       </Page>
     );
   }
@@ -81,15 +86,15 @@ export default function DashboardPage() {
     <Page wide>
       <PageHeader
         title="Dashboard"
-        description="Vue d'ensemble en temps réel de vos War Rooms, agents et consommation IA."
+        description={t("Vue d'ensemble en temps réel de vos War Rooms, agents et consommation IA.")}
         icon={<LayoutDashboard />}
         actions={
           <>
             <Button variant="secondary" onClick={() => navigate("/chats?new=1")}>
-                <MessagesSquare /> Nouveau chat
+                <MessagesSquare /> {t("Nouveau chat")}
               </Button>
             <Button variant="primary" onClick={() => navigate("/warrooms/new")}>
-                <Plus /> Nouvelle War Room
+                <Plus /> {t("Nouvelle War Room")}
               </Button>
           </>
         }
@@ -99,39 +104,40 @@ export default function DashboardPage() {
         <Card className="mb-6 border-accent/40">
           <div className="flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center">
             <div className="flex-1">
-              <h2 className="text-[15px] font-semibold">Bienvenue dans WAR ROOM</h2>
-              <p className="mt-1 text-[13px] text-fg-muted">Deux étapes pour démarrer :</p>
+              <h2 className="text-[15px] font-semibold">{t("Bienvenue dans WAR ROOM")}</h2>
+              <p className="mt-1 text-[13px] text-fg-muted">{t("Deux étapes pour démarrer :")}</p>
               <ol className="mt-3 space-y-2 text-[13px]">
                 <li className="flex items-start gap-2">
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-accent">1</span>
                   <span>
-                    Connectez un fournisseur IA dans <Link to="/providers" className="text-accent underline-offset-2 hover:underline">Models & Providers</Link> — votre abonnement Claude via
-                    Claude Code, une clé API, ou Ollama en local.
+                    {t("Connectez un fournisseur IA dans")}{" "}
+                    <Link to="/providers" className="text-accent underline-offset-2 hover:underline">Models & Providers</Link>{" "}
+                    {t("— votre abonnement Claude via Claude Code, une clé API, ou Ollama en local.")}
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[11px] font-semibold text-fg-muted">2</span>
-                  <span>Créez une War Room, donnez un brief à votre orchestrateur et laissez-le proposer une équipe d'agents.</span>
+                  <span>{t("Créez une War Room, donnez un brief à votre orchestrateur et laissez-le proposer une équipe d'agents.")}</span>
                 </li>
               </ol>
             </div>
             <Button variant="primary" size="lg" onClick={() => navigate("/providers")}>
-                Connecter un fournisseur <ArrowRight />
+                {t("Connecter un fournisseur")} <ArrowRight />
               </Button>
           </div>
         </Card>
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="War Rooms actives" value={d?.rooms.length ?? 0} hint={`${d?.agentCount ?? 0} agents au total`} />
-        <Stat label="Tâches en cours" value={d?.tasksInProgress.length ?? 0} />
+        <Stat label={t("War Rooms actives")} value={d?.rooms.length ?? 0} hint={t("{n} agents au total", { n: d?.agentCount ?? 0 })} />
+        <Stat label={t("Tâches en cours")} value={d?.tasksInProgress.length ?? 0} />
         <Stat
-          label="Appels IA (24 h)"
+          label={t("Appels IA (24 h)")}
           value={u?.calls ?? 0}
-          hint={u?.errors ? `${u.errors} en erreur` : "tokens et coûts exacts rapportés par les fournisseurs"}
+          hint={u?.errors ? t("{n} en erreur", { n: u.errors }) : t("tokens et coûts exacts rapportés par les fournisseurs")}
         />
         <Stat
-          label="Facturé API (24 h)"
+          label={t("Facturé API (24 h)")}
           value={fmtUsd(u?.billedUsd ?? 0)}
           hint={`↑ ${fmtTokens(u?.inputTokens ?? null, { compact: true })} · ↓ ${fmtTokens(u?.outputTokens ?? null, { compact: true })} tokens`}
         />
@@ -148,12 +154,12 @@ export default function DashboardPage() {
               )}
             >
               <AlertTriangle className="size-4 shrink-0" />
-              <span className="font-medium">{a.level! >= 1 ? "Budget atteint" : `Budget à ${Math.round(a.level! * 100)} %`}</span>
+              <span className="font-medium">{a.level! >= 1 ? t("Budget atteint") : t("Budget à {pct} %", { pct: Math.round(a.level! * 100) })}</span>
               <span className="text-fg-muted">
-                {SCOPE_LABEL[a.scope]} · {a.name} — {fmtUsd(a.spentUsd)} / {fmtUsd(a.limitUsd)}
+                {scopeLabel(a.scope)} · {a.name} — {fmtUsd(a.spentUsd)} / {fmtUsd(a.limitUsd)}
               </span>
               <Link to="/usage" className="ml-auto text-xs underline-offset-2 hover:underline">
-                Détails
+                {t("Détails")}
               </Link>
             </div>
           ))}
@@ -164,10 +170,10 @@ export default function DashboardPage() {
         <div className="space-y-4 xl:col-span-2">
           <Card>
             <CardHeader
-              title="War Rooms actives"
+              title={t("War Rooms actives")}
               actions={
                 <Link to="/warrooms" className="text-xs text-fg-muted hover:text-fg">
-                  Tout voir
+                  {t("Tout voir")}
                 </Link>
               }
             />
@@ -188,11 +194,11 @@ export default function DashboardPage() {
               <EmptyState
                 className="m-4"
                 icon={<Swords />}
-                title="Aucune War Room"
-                description="Une War Room réunit un orchestrateur et des agents spécialisés autour d'un projet."
+                title={t("Aucune War Room")}
+                description={t("Une War Room réunit un orchestrateur et des agents spécialisés autour d'un projet.")}
                 action={
                   <Button variant="primary" size="sm" onClick={() => navigate("/warrooms/new")}>
-                      <Plus /> Créer une War Room
+                      <Plus /> {t("Créer une War Room")}
                     </Button>
                 }
               />
@@ -201,27 +207,27 @@ export default function DashboardPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
-              <CardHeader title="Tâches en cours" />
+              <CardHeader title={t("Tâches en cours")} />
               {d?.tasksInProgress.length ? (
                 <div className="divide-y divide-border">
-                  {d.tasksInProgress.map((t) => (
-                    <ListLink key={t.id} to={t.warRoomId ? `/warrooms/${t.warRoomId}?tab=tasks` : "/projects"}>
+                  {d.tasksInProgress.map((task) => (
+                    <ListLink key={task.id} to={task.warRoomId ? `/warrooms/${task.warRoomId}?tab=tasks` : "/projects"}>
                       <ListTodo className="size-4 shrink-0 text-accent" />
-                      <span className="min-w-0 flex-1 truncate">{t.title}</span>
-                      <span className="text-xs text-fg-subtle">{fmtRelative(t.updatedAt)}</span>
+                      <span className="min-w-0 flex-1 truncate">{task.title}</span>
+                      <span className="text-xs text-fg-subtle">{fmtRelative(task.updatedAt)}</span>
                     </ListLink>
                   ))}
                 </div>
               ) : (
-                <p className="px-4 py-6 text-center text-xs text-fg-subtle">Aucune tâche en cours.</p>
+                <p className="px-4 py-6 text-center text-xs text-fg-subtle">{t("Aucune tâche en cours.")}</p>
               )}
             </Card>
             <Card>
               <CardHeader
-                title="Projets actifs"
+                title={t("Projets actifs")}
                 actions={
                   <Link to="/projects" className="text-xs text-fg-muted hover:text-fg">
-                    Tout voir
+                    {t("Tout voir")}
                   </Link>
                 }
               />
@@ -237,27 +243,30 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <p className="px-4 py-6 text-center text-xs text-fg-subtle">
-                  Aucun projet actif. <Link to="/projects?new=1" className="text-accent hover:underline">Créer un projet</Link>
+                  {t("Aucun projet actif.")}{" "}
+                  <Link to="/projects?new=1" className="text-accent hover:underline">
+                    {t("Créer un projet")}
+                  </Link>
                 </p>
               )}
             </Card>
           </div>
 
           <Card>
-            <CardHeader title="Dernières conversations" />
+            <CardHeader title={t("Dernières conversations")} />
             {d?.recentConversations.length ? (
               <div className="divide-y divide-border">
                 {d.recentConversations.map((c) => (
                   <ListLink key={c.id} to={convHref(c)}>
                     <MessagesSquare className="size-4 shrink-0 text-fg-subtle" />
                     <span className="min-w-0 flex-1 truncate">{c.title}</span>
-                    <Badge tone="outline">{c.kind === "chat" ? "Chat" : c.kind === "agent" ? "Agent" : "War Room"}</Badge>
+                    <Badge tone="outline">{c.kind === "chat" ? t("Chat") : c.kind === "agent" ? t("Agent") : t("War Room")}</Badge>
                     <span className="text-xs text-fg-subtle">{fmtRelative(c.updatedAt)}</span>
                   </ListLink>
                 ))}
               </div>
             ) : (
-              <p className="px-4 py-6 text-center text-xs text-fg-subtle">Aucune conversation pour l'instant.</p>
+              <p className="px-4 py-6 text-center text-xs text-fg-subtle">{t("Aucune conversation pour l'instant.")}</p>
             )}
           </Card>
         </div>
@@ -265,10 +274,10 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader
-              title="Fournisseurs IA"
+              title={t("Fournisseurs IA")}
               actions={
                 <Link to="/providers" className="text-xs text-fg-muted hover:text-fg">
-                  Gérer
+                  {t("Gérer")}
                 </Link>
               }
             />
@@ -278,24 +287,24 @@ export default function DashboardPage() {
                   <ListLink key={p.id} to="/providers">
                     <StatusDot status={p.status === "ok" ? "ok" : p.status === "error" ? "error" : "unknown"} />
                     <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                    <span className="text-xs text-fg-subtle">{p.modelCount} modèles</span>
+                    <span className="text-xs text-fg-subtle">{t("{n} modèles", { n: p.modelCount })}</span>
                   </ListLink>
                 ))}
               </div>
             ) : (
               <div className="px-4 py-5 text-center text-xs text-fg-subtle">
                 <Cpu className="mx-auto mb-2 size-5" />
-                Aucun fournisseur connecté.
+                {t("Aucun fournisseur connecté.")}
               </div>
             )}
           </Card>
 
           <Card>
             <CardHeader
-              title="Serveurs MCP"
+              title={t("Serveurs MCP")}
               actions={
                 <Link to="/mcp" className="text-xs text-fg-muted hover:text-fg">
-                  Gérer
+                  {t("Gérer")}
                 </Link>
               }
             />
@@ -304,14 +313,14 @@ export default function DashboardPage() {
               {status.data ? (
                 status.data.mcp.total ? (
                   <span>
-                    {status.data.mcp.connected}/{status.data.mcp.total} connectés
-                    {status.data.mcp.error ? <span className="ml-2 text-danger">{status.data.mcp.error} en erreur</span> : null}
+                    {t("{connected}/{total} connectés", { connected: status.data.mcp.connected, total: status.data.mcp.total })}
+                    {status.data.mcp.error ? <span className="ml-2 text-danger">{t("{n} en erreur", { n: status.data.mcp.error })}</span> : null}
                   </span>
                 ) : (
-                  <span className="text-fg-subtle">Aucun serveur configuré</span>
+                  <span className="text-fg-subtle">{t("Aucun serveur configuré")}</span>
                 )
               ) : (
-                <span className="text-fg-subtle">inconnu</span>
+                <span className="text-fg-subtle">{t("inconnu")}</span>
               )}
             </div>
           </Card>
@@ -320,10 +329,10 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader
-              title="Consommation"
+              title={t("Consommation")}
               actions={
                 <Link to="/usage" className="text-xs text-fg-muted hover:text-fg">
-                  <BarChart3 className="inline size-3.5" /> Détails
+                  <BarChart3 className="inline size-3.5" /> {t("Détails")}
                 </Link>
               }
             />
@@ -332,11 +341,11 @@ export default function DashboardPage() {
                 <div key={`${b.scope}-${b.id}`} className="space-y-1">
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <span className="truncate text-fg-muted">
-                      {SCOPE_LABEL[b.scope]} · {b.name}
+                      {scopeLabel(b.scope)} · {b.name}
                     </span>
                     <span className="shrink-0 tabular-nums">
                       {fmtUsd(b.spentUsd)}
-                      {b.limitUsd !== null ? <span className="text-fg-subtle"> / {fmtUsd(b.limitUsd)}</span> : <span className="text-fg-subtle"> · sans limite</span>}
+                      {b.limitUsd !== null ? <span className="text-fg-subtle"> / {fmtUsd(b.limitUsd)}</span> : <span className="text-fg-subtle"> · {t("sans limite")}</span>}
                     </span>
                   </div>
                   {b.limitUsd ? (
@@ -344,15 +353,15 @@ export default function DashboardPage() {
                   ) : null}
                 </div>
               ))}
-              {!budgets.data?.items.length ? <p className="text-xs text-fg-subtle">Aucune dépense enregistrée.</p> : null}
+              {!budgets.data?.items.length ? <p className="text-xs text-fg-subtle">{t("Aucune dépense enregistrée.")}</p> : null}
               <p className="flex items-center gap-1.5 pt-1 text-[11px] text-fg-subtle">
-                <Gauge className="size-3" /> Seules les dépenses API réelles sont comptées ; l'usage d'abonnement est exclu.
+                <Gauge className="size-3" /> {t("Seules les dépenses API réelles sont comptées ; l'usage d'abonnement est exclu.")}
               </p>
             </div>
           </Card>
 
           <Card>
-            <CardHeader title="Activité récente" />
+            <CardHeader title={t("Activité récente")} />
             {d?.activity.length ? (
               <ol className="space-y-0 px-4 py-2">
                 {d.activity.map((a) => (
@@ -372,7 +381,7 @@ export default function DashboardPage() {
                 ))}
               </ol>
             ) : (
-              <p className="px-4 py-6 text-center text-xs text-fg-subtle">Aucune activité.</p>
+              <p className="px-4 py-6 text-center text-xs text-fg-subtle">{t("Aucune activité.")}</p>
             )}
           </Card>
         </div>

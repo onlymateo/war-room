@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { qk } from "@/lib/queries";
 import { cn, fmtDateTime } from "@/lib/utils";
+import { t } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Switch, Textarea } from "@/components/ui/form";
 import { Badge, Card, Dialog, EmptyState, Page, PageHeader, Skeleton, StatusDot, Tabs, Tooltip } from "@/components/ui/primitives";
@@ -75,10 +76,10 @@ export default function McpPage() {
       <PageHeader
         icon={<Plug />}
         title="MCP Servers"
-        description="Serveurs Model Context Protocol (STDIO local ou HTTP distant), connectés via le SDK officiel."
+        description={t("Serveurs Model Context Protocol (STDIO local ou HTTP distant), connectés via le SDK officiel.")}
         actions={
           <Button variant="primary" onClick={() => setEditing("new")}>
-            <Plus /> Ajouter un serveur
+            <Plus /> {t("Ajouter un serveur")}
           </Button>
         }
       />
@@ -86,8 +87,7 @@ export default function McpPage() {
       <Card className="mb-5 flex items-start gap-2.5 px-4 py-3 text-xs text-fg-muted">
         <Info className="mt-0.5 size-4 shrink-0 text-accent" />
         <p>
-          Un agent utilise les outils d'un serveur pendant ses conversations s'il a la permission « Utiliser MCP » et si le serveur lui est attribué (réglages de l'agent).
-          Les outils marqués sensibles demandent votre accord dans la conversation avant chaque exécution. Chaque outil exposé ajoute sa définition au prompt de l'agent : n'attribuez que les serveurs utiles.
+          {t("Un agent utilise les outils d'un serveur pendant ses conversations s'il a la permission « Utiliser MCP » et si le serveur lui est attribué (réglages de l'agent). Les outils marqués sensibles demandent votre accord dans la conversation avant chaque exécution. Chaque outil exposé ajoute sa définition au prompt de l'agent : n'attribuez que les serveurs utiles.")}
         </p>
       </Card>
 
@@ -97,15 +97,15 @@ export default function McpPage() {
           <Skeleton className="h-64" />
         </div>
       ) : servers.isError ? (
-        <EmptyState title="Impossible de charger les serveurs MCP" description={errMsg(servers.error)} />
+        <EmptyState title={t("Impossible de charger les serveurs MCP")} description={errMsg(servers.error)} />
       ) : !servers.data?.length ? (
         <EmptyState
           icon={<Plug />}
-          title="Aucun serveur MCP"
-          description="Ajoutez un serveur local (STDIO), par exemple : npx -y @modelcontextprotocol/server-filesystem <dossier>, ou un serveur distant HTTP."
+          title={t("Aucun serveur MCP")}
+          description={t("Ajoutez un serveur local (STDIO), par exemple : npx -y @modelcontextprotocol/server-filesystem <dossier>, ou un serveur distant HTTP.")}
           action={
             <Button variant="primary" onClick={() => setEditing("new")}>
-              <Plus /> Ajouter un serveur
+              <Plus /> {t("Ajouter un serveur")}
             </Button>
           }
         />
@@ -127,12 +127,12 @@ export default function McpPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate text-[13px] font-medium">{s.name}</span>
-                    {!s.enabled ? <Badge>désactivé</Badge> : null}
+                    {!s.enabled ? <Badge>{t("désactivé")}</Badge> : null}
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] text-fg-subtle">
                     <StatusDot status={statusDot(s.status)} className="size-1.5" />
-                    {STATUS_LABEL[s.status]}
-                    {s.status === "connected" ? ` · ${s.tools.length} outils` : ""}
+                    {t(STATUS_LABEL[s.status])}
+                    {s.status === "connected" ? ` · ${t("{count} outils", { count: s.tools.length })}` : ""}
                   </div>
                 </div>
               </button>
@@ -155,8 +155,8 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
   const connect = useMutation({
     mutationFn: () => api.post<McpServer>(`/mcp/${server.id}/connect`),
     onSuccess: (s) => {
-      if (s.status === "error") toast.error(`${server.name} : ${s.error ?? "échec de connexion"}`);
-      else toast.success(`${server.name} connecté`);
+      if (s.status === "error") toast.error(t("{name} : {error}", { name: server.name, error: s.error ?? t("échec de connexion") }));
+      else toast.success(t("{name} connecté", { name: server.name }));
       onChanged();
     },
     onError: (e) => toast.error(errMsg(e)),
@@ -164,7 +164,7 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
   const disconnect = useMutation({
     mutationFn: () => api.post(`/mcp/${server.id}/disconnect`),
     onSuccess: () => {
-      toast.success(`${server.name} déconnecté`);
+      toast.success(t("{name} déconnecté", { name: server.name }));
       onChanged();
     },
     onError: (e) => toast.error(errMsg(e)),
@@ -172,7 +172,7 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
   const remove = useMutation({
     mutationFn: () => api.del(`/mcp/${server.id}`),
     onSuccess: () => {
-      toast.success("Serveur supprimé");
+      toast.success(t("Serveur supprimé"));
       onChanged();
     },
     onError: (e) => toast.error(errMsg(e)),
@@ -197,7 +197,7 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-[15px] font-semibold">{server.name}</h2>
             <Badge tone="outline">{server.transport === "stdio" ? "STDIO" : "HTTP"}</Badge>
-            <Badge tone={connected ? "success" : server.status === "error" ? "danger" : "neutral"}>{STATUS_LABEL[server.status]}</Badge>
+            <Badge tone={connected ? "success" : server.status === "error" ? "danger" : "neutral"}>{t(STATUS_LABEL[server.status])}</Badge>
             {server.serverInfo?.name ? (
               <span className="text-[11px] text-fg-subtle">
                 {server.serverInfo.name}
@@ -209,34 +209,34 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
             {server.transport === "stdio" ? [server.command, ...server.args].join(" ") : server.url}
           </p>
           <div className="mt-1 flex gap-3 text-[11px] text-fg-subtle">
-            {server.hasEnv ? <span>Variables d'environnement chiffrées</span> : null}
-            {server.hasHeaders ? <span>En-têtes chiffrés</span> : null}
+            {server.hasEnv ? <span>{t("Variables d'environnement chiffrées")}</span> : null}
+            {server.hasHeaders ? <span>{t("En-têtes chiffrés")}</span> : null}
           </div>
           {server.error ? <p className="mt-2 rounded-md bg-danger/10 px-2.5 py-1.5 text-xs text-danger">{server.error}</p> : null}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Switch checked={server.enabled} onChange={(v) => toggleEnabled.mutate(v)} label="Activé" />
+          <Switch checked={server.enabled} onChange={(v) => toggleEnabled.mutate(v)} label={t("Activé")} />
           {connected ? (
             <Button size="sm" loading={disconnect.isPending} onClick={() => disconnect.mutate()}>
-              <PowerOff /> Déconnecter
+              <PowerOff /> {t("Déconnecter")}
             </Button>
           ) : (
             <Button size="sm" variant="primary" disabled={!server.enabled} loading={connect.isPending} onClick={() => connect.mutate()}>
-              <Power /> Connecter
+              <Power /> {t("Connecter")}
             </Button>
           )}
-          <Tooltip content="Modifier">
-            <Button size="icon-sm" variant="ghost" onClick={onEdit} aria-label="Modifier">
+          <Tooltip content={t("Modifier")}>
+            <Button size="icon-sm" variant="ghost" onClick={onEdit} aria-label={t("Modifier")}>
               <Pencil />
             </Button>
           </Tooltip>
-          <Tooltip content="Supprimer">
+          <Tooltip content={t("Supprimer")}>
             <Button
               size="icon-sm"
               variant="danger-ghost"
               loading={remove.isPending}
-              onClick={() => confirm(`Supprimer le serveur « ${server.name} » ?`) && remove.mutate()}
-              aria-label="Supprimer"
+              onClick={() => confirm(t("Supprimer le serveur « {name} » ?", { name: server.name })) && remove.mutate()}
+              aria-label={t("Supprimer")}
             >
               <Trash2 />
             </Button>
@@ -249,8 +249,8 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
           value={tab}
           onValueChange={setTab}
           items={[
-            { value: "tools", label: "Outils", count: server.tools.length },
-            { value: "resources", label: "Ressources", count: server.resources.length },
+            { value: "tools", label: t("Outils"), count: server.tools.length },
+            { value: "resources", label: t("Ressources"), count: server.resources.length },
             { value: "prompts", label: "Prompts", count: server.prompts.length },
             { value: "logs", label: "Logs" },
             { value: "agents", label: "Agents", count: server.agents.length },
@@ -261,39 +261,39 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
       <div className="p-4">
         {tab === "tools" ? (
           !connected ? (
-            <p className="text-xs text-fg-subtle">Connectez le serveur pour lister ses outils.</p>
+            <p className="text-xs text-fg-subtle">{t("Connectez le serveur pour lister ses outils.")}</p>
           ) : server.tools.length === 0 ? (
-            <p className="text-xs text-fg-subtle">Ce serveur n'expose aucun outil.</p>
+            <p className="text-xs text-fg-subtle">{t("Ce serveur n'expose aucun outil.")}</p>
           ) : (
             <div className="divide-y divide-border rounded-lg border border-border">
-              {server.tools.map((t) => {
-                const sensitive = server.sensitiveTools.includes(t.name);
+              {server.tools.map((tool) => {
+                const sensitive = server.sensitiveTools.includes(tool.name);
                 return (
-                  <div key={t.name} className="flex items-start gap-3 px-3 py-2.5">
+                  <div key={tool.name} className="flex items-start gap-3 px-3 py-2.5">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[12px] font-medium">{t.name}</span>
+                        <span className="font-mono text-[12px] font-medium">{tool.name}</span>
                         {sensitive ? (
                           <Badge tone="warning">
-                            <ShieldAlert /> Sensible
+                            <ShieldAlert /> {t("Sensible")}
                           </Badge>
                         ) : null}
                       </div>
-                      {t.description ? <p className="mt-0.5 line-clamp-2 text-xs text-fg-muted">{t.description}</p> : null}
+                      {tool.description ? <p className="mt-0.5 line-clamp-2 text-xs text-fg-muted">{tool.description}</p> : null}
                     </div>
-                    <Tooltip content="Un outil sensible exige une confirmation humaine avant chaque exécution par un agent">
+                    <Tooltip content={t("Un outil sensible exige une confirmation humaine avant chaque exécution par un agent")}>
                       <span>
                         <Switch
                           checked={sensitive}
                           onChange={(v) =>
-                            setSensitive.mutate(v ? [...server.sensitiveTools, t.name] : server.sensitiveTools.filter((x) => x !== t.name))
+                            setSensitive.mutate(v ? [...server.sensitiveTools, tool.name] : server.sensitiveTools.filter((x) => x !== tool.name))
                           }
-                          label="Sensible"
+                          label={t("Sensible")}
                         />
                       </span>
                     </Tooltip>
-                    <Button size="sm" variant="ghost" onClick={() => setTestTool(t)}>
-                      <Play /> Tester
+                    <Button size="sm" variant="ghost" onClick={() => setTestTool(tool)}>
+                      <Play /> {t("Tester")}
                     </Button>
                   </div>
                 );
@@ -304,7 +304,7 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
 
         {tab === "resources" ? (
           server.resources.length === 0 ? (
-            <p className="text-xs text-fg-subtle">{connected ? "Aucune ressource exposée." : "Connectez le serveur pour lister ses ressources."}</p>
+            <p className="text-xs text-fg-subtle">{connected ? t("Aucune ressource exposée.") : t("Connectez le serveur pour lister ses ressources.")}</p>
           ) : (
             <div className="divide-y divide-border rounded-lg border border-border">
               {server.resources.map((r) => (
@@ -323,7 +323,7 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
 
         {tab === "prompts" ? (
           server.prompts.length === 0 ? (
-            <p className="text-xs text-fg-subtle">{connected ? "Aucun prompt exposé." : "Connectez le serveur pour lister ses prompts."}</p>
+            <p className="text-xs text-fg-subtle">{connected ? t("Aucun prompt exposé.") : t("Connectez le serveur pour lister ses prompts.")}</p>
           ) : (
             <div className="divide-y divide-border rounded-lg border border-border">
               {server.prompts.map((p) => (
@@ -341,17 +341,16 @@ function ServerDetail({ server, onEdit, onChanged }: { server: McpServer; onEdit
         {tab === "agents" ? (
           <div className="space-y-3">
             <p className="text-xs text-fg-muted">
-              L'attribution d'un serveur MCP se fait dans les paramètres de l'agent (dans sa War Room). L'agent doit aussi disposer de la permission « Utiliser
-              MCP » : sans elle, le serveur refuse tout appel d'outil.
+              {t("L'attribution d'un serveur MCP se fait dans les paramètres de l'agent (dans sa War Room). L'agent doit aussi disposer de la permission « Utiliser MCP » : sans elle, le serveur refuse tout appel d'outil.")}
             </p>
             {server.agents.length === 0 ? (
-              <p className="text-xs text-fg-subtle">Aucun agent n'a accès à ce serveur.</p>
+              <p className="text-xs text-fg-subtle">{t("Aucun agent n'a accès à ce serveur.")}</p>
             ) : (
               <div className="divide-y divide-border rounded-lg border border-border">
                 {server.agents.map((a) => (
                   <div key={a.id} className="flex items-center justify-between px-3 py-2">
                     <span className="text-[13px]">{a.name}</span>
-                    {a.allowed ? <Badge tone="success">Permission MCP accordée</Badge> : <Badge tone="warning">Permission « Utiliser MCP » désactivée</Badge>}
+                    {a.allowed ? <Badge tone="success">{t("Permission MCP accordée")}</Badge> : <Badge tone="warning">{t("Permission « Utiliser MCP » désactivée")}</Badge>}
                   </div>
                 ))}
               </div>
@@ -374,7 +373,7 @@ function LogsPanel({ serverId }: { serverId: string }) {
     <div className="space-y-2">
       <div className="flex justify-end">
         <Button size="sm" variant="ghost" loading={logs.isFetching} onClick={() => void logs.refetch()}>
-          <RefreshCw /> Actualiser
+          <RefreshCw /> {t("Actualiser")}
         </Button>
       </div>
       {logs.data?.length ? (
@@ -387,7 +386,7 @@ function LogsPanel({ serverId }: { serverId: string }) {
           ))}
         </div>
       ) : (
-        <p className="text-xs text-fg-subtle">{logs.isLoading ? "Chargement…" : "Aucun log depuis le démarrage de WAR ROOM."}</p>
+        <p className="text-xs text-fg-subtle">{logs.isLoading ? t("Chargement…") : t("Aucun log depuis le démarrage de WAR ROOM.")}</p>
       )}
     </div>
   );
@@ -406,9 +405,9 @@ function ToolTestDialog({ serverId, tool, onClose }: { serverId: string; tool: M
       try {
         args = JSON.parse(argsText || "{}");
       } catch {
-        throw new Error("Arguments : JSON invalide");
+        throw new Error(t("Arguments : JSON invalide"));
       }
-      if (typeof args !== "object" || args === null || Array.isArray(args)) throw new Error("Les arguments doivent être un objet JSON");
+      if (typeof args !== "object" || args === null || Array.isArray(args)) throw new Error(t("Les arguments doivent être un objet JSON"));
       return api.post<unknown>(`/mcp/${serverId}/tools/${encodeURIComponent(tool!.name)}`, { args });
     },
     onSuccess: (r) => setResult(JSON.stringify(r, null, 2)),
@@ -418,16 +417,16 @@ function ToolTestDialog({ serverId, tool, onClose }: { serverId: string; tool: M
     <Dialog
       open={!!tool}
       onOpenChange={(v) => !v && onClose()}
-      title={`Tester « ${tool?.name ?? ""} »`}
-      description="Exécution manuelle par vous : l'outil s'exécute réellement sur le serveur MCP."
+      title={t("Tester « {name} »", { name: tool?.name ?? "" })}
+      description={t("Exécution manuelle par vous : l'outil s'exécute réellement sur le serveur MCP.")}
       size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Fermer
+            {t("Fermer")}
           </Button>
           <Button variant="primary" loading={run.isPending} onClick={() => run.mutate()}>
-            <Play /> Exécuter
+            <Play /> {t("Exécuter")}
           </Button>
         </>
       }
@@ -436,15 +435,15 @@ function ToolTestDialog({ serverId, tool, onClose }: { serverId: string; tool: M
         {tool?.description ? <p className="text-xs text-fg-muted">{tool.description}</p> : null}
         {tool?.inputSchema ? (
           <details className="text-xs">
-            <summary className="cursor-pointer text-fg-muted">Schéma des arguments</summary>
+            <summary className="cursor-pointer text-fg-muted">{t("Schéma des arguments")}</summary>
             <pre className="mt-2 max-h-48 overflow-auto rounded-md border border-border bg-bg p-2 font-mono text-[11px]">{JSON.stringify(tool.inputSchema, null, 2)}</pre>
           </details>
         ) : null}
-        <Field label="Arguments (JSON)">
+        <Field label={t("Arguments (JSON)")}>
           <Textarea value={argsText} onChange={(e) => setArgsText(e.target.value)} rows={6} className="font-mono text-xs" />
         </Field>
         {result !== null ? (
-          <Field label="Résultat">
+          <Field label={t("Résultat")}>
             <pre className="max-h-72 overflow-auto rounded-md border border-border bg-bg p-2 font-mono text-[11px]">{result}</pre>
           </Field>
         ) : null}
@@ -459,7 +458,7 @@ function parseLines(text: string, sep: "=" | ":"): Record<string, string> | stri
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
     const i = line.indexOf(sep);
-    if (i <= 0) return `Ligne invalide : « ${line} » (format attendu KEY${sep === "=" ? "=" : ": "}VALUE)`;
+    if (i <= 0) return t("Ligne invalide : « {line} » (format attendu {format})", { line, format: `KEY${sep === "=" ? "=" : ": "}VALUE` });
     out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
   }
   return out;
@@ -510,7 +509,7 @@ function ServerDialog({ target, onClose, onSaved }: { target: McpServer | "new" 
       return editing ? api.patch<McpServer>(`/mcp/${editing.id}`, payload) : api.post<McpServer>("/mcp", payload);
     },
     onSuccess: (s) => {
-      toast.success(editing ? "Serveur mis à jour" : "Serveur ajouté — cliquez sur « Connecter »");
+      toast.success(editing ? t("Serveur mis à jour") : t("Serveur ajouté — cliquez sur « Connecter »"));
       onSaved(s.id);
       onClose();
     },
@@ -524,65 +523,65 @@ function ServerDialog({ target, onClose, onSaved }: { target: McpServer | "new" 
     <Dialog
       open={!!target}
       onOpenChange={(v) => !v && onClose()}
-      title={editing ? `Modifier « ${editing.name} »` : "Ajouter un serveur MCP"}
-      description="Les variables d'environnement et en-têtes sont chiffrés au repos et ne sont jamais renvoyés au navigateur."
+      title={editing ? t("Modifier « {name} »", { name: editing.name }) : t("Ajouter un serveur MCP")}
+      description={t("Les variables d'environnement et en-têtes sont chiffrés au repos et ne sont jamais renvoyés au navigateur.")}
       size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button variant="primary" disabled={!valid} loading={save.isPending} onClick={() => save.mutate()}>
-            {editing ? "Enregistrer" : "Ajouter"}
+            {editing ? t("Enregistrer") : t("Ajouter")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <div className="grid grid-cols-[1fr_160px] gap-3">
-          <Field label="Nom">
+          <Field label={t("Nom")}>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="filesystem" />
           </Field>
           <Field label="Transport">
             <Select value={transport} onChange={(e) => setTransport(e.target.value as "stdio" | "http")} disabled={!!editing}>
-              <option value="stdio">STDIO (local)</option>
-              <option value="http">HTTP (distant)</option>
+              <option value="stdio">{t("STDIO (local)")}</option>
+              <option value="http">{t("HTTP (distant)")}</option>
             </Select>
           </Field>
         </div>
         {transport === "stdio" ? (
           <>
-            <Field label="Commande" hint="Exemple : npx">
+            <Field label={t("Commande")} hint={t("Exemple : npx")}>
               <Input value={command} onChange={(e) => setCommand(e.target.value)} placeholder="npx" className="font-mono text-xs" />
             </Field>
-            <Field label="Arguments (un par ligne)" hint="Exemple : -y, @modelcontextprotocol/server-filesystem, C:\chemin\vers\dossier">
-              <Textarea value={argsText} onChange={(e) => setArgsText(e.target.value)} rows={4} className="font-mono text-xs" placeholder={"-y\n@modelcontextprotocol/server-filesystem\nC:\\Users\\moi\\Documents"} />
+            <Field label={t("Arguments (un par ligne)")} hint={t("Exemple : -y, @modelcontextprotocol/server-filesystem, C:\\chemin\\vers\\dossier")}>
+              <Textarea value={argsText} onChange={(e) => setArgsText(e.target.value)} rows={4} className="font-mono text-xs" placeholder={t("-y\n@modelcontextprotocol/server-filesystem\nC:\\Users\\moi\\Documents")} />
             </Field>
             <Field
-              label="Variables d'environnement (KEY=VALUE, une par ligne)"
-              hint={hasStoredSecret ? "Valeurs enregistrées chiffrées. Laissez vide pour les conserver ; saisissez de nouvelles valeurs pour les remplacer." : "Optionnel. Écriture seule."}
+              label={t("Variables d'environnement (KEY=VALUE, une par ligne)")}
+              hint={hasStoredSecret ? t("Valeurs enregistrées chiffrées. Laissez vide pour les conserver ; saisissez de nouvelles valeurs pour les remplacer.") : t("Optionnel. Écriture seule.")}
             >
               <Textarea value={envText} onChange={(e) => setEnvText(e.target.value)} rows={3} className="font-mono text-xs" placeholder="API_TOKEN=…" />
             </Field>
           </>
         ) : (
           <>
-            <Field label="URL" hint="Endpoint Streamable HTTP du serveur MCP">
+            <Field label="URL" hint={t("Endpoint Streamable HTTP du serveur MCP")}>
               <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/mcp" className="font-mono text-xs" />
             </Field>
             <Field
-              label="En-têtes (KEY: VALUE, un par ligne)"
-              hint={hasStoredSecret ? "Valeurs enregistrées chiffrées. Laissez vide pour les conserver ; saisissez de nouvelles valeurs pour les remplacer." : "Optionnel. Écriture seule."}
+              label={t("En-têtes (KEY: VALUE, un par ligne)")}
+              hint={hasStoredSecret ? t("Valeurs enregistrées chiffrées. Laissez vide pour les conserver ; saisissez de nouvelles valeurs pour les remplacer.") : t("Optionnel. Écriture seule.")}
             >
               <Textarea value={headersText} onChange={(e) => setHeadersText(e.target.value)} rows={3} className="font-mono text-xs" placeholder="Authorization: Bearer …" />
             </Field>
           </>
         )}
         {hasStoredSecret ? (
-          <Switch checked={clearSecrets} onChange={setClearSecrets} label="Effacer les valeurs chiffrées enregistrées (si aucune nouvelle valeur n'est saisie)" />
+          <Switch checked={clearSecrets} onChange={setClearSecrets} label={t("Effacer les valeurs chiffrées enregistrées (si aucune nouvelle valeur n'est saisie)")} />
         ) : null}
         <p className="text-[11px] text-fg-subtle">
-          Un serveur STDIO est un programme lancé sur votre machine avec vos droits : n'ajoutez que des serveurs de confiance.
+          {t("Un serveur STDIO est un programme lancé sur votre machine avec vos droits : n'ajoutez que des serveurs de confiance.")}
         </p>
       </div>
     </Dialog>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Button } from "./button";
 import { Dialog } from "./primitives";
+import { t } from "@/i18n";
 
 /** Confirmation for destructive actions: says exactly what will happen before doing it. */
 export function ConfirmDialog({
@@ -9,7 +10,7 @@ export function ConfirmDialog({
   title,
   description,
   details,
-  confirmLabel = "Supprimer",
+  confirmLabel,
   onConfirm,
   loading,
 }: {
@@ -33,10 +34,10 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button variant="danger" onClick={onConfirm} loading={loading}>
-            {confirmLabel}
+            {confirmLabel ?? t("Supprimer")}
           </Button>
         </>
       }
@@ -48,7 +49,7 @@ export function ConfirmDialog({
           ))}
         </ul>
       ) : (
-        <p className="text-[13px] text-fg-muted">Cette action est définitive.</p>
+        <p className="text-[13px] text-fg-muted">{t("Cette action est définitive.")}</p>
       )}
     </Dialog>
   );

@@ -64,7 +64,7 @@ const CLAUDE_CLI_MODELS: CatalogModel[] = CLAUDE_MODELS.map(({ price: _price, ..
 export const PROVIDERS: ProviderDefinition[] = [
   {
     id: "claude-code",
-    name: "Claude Code (abonnement Pro/Max)",
+    name: "Claude Code (Pro/Max)",
     kind: "claude_cli",
     authMode: "cli_subscription",
     description: "Uses your Claude Pro/Max subscription through the official `claude` CLI, run locally in headless mode.",

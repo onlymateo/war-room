@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { qk, useModels, useUsableModels } from "@/lib/queries";
 import type { Conversation, MessageDTO } from "@/lib/types";
 import { cn, fmtRelative } from "@/lib/utils";
+import { locale, t } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Dialog, EmptyState, Menu, Skeleton } from "@/components/ui/primitives";
@@ -44,7 +45,7 @@ export default function ChatsPage() {
     mutationFn: async () => {
       const remembered = lastModel();
       const pick = (remembered && models.find((m) => m.providerId === remembered.providerId && m.modelId === remembered.modelId)) || models[0];
-      if (!pick) throw new Error("Aucun modèle disponible : connectez un fournisseur dans Models & Providers.");
+      if (!pick) throw new Error(t("Aucun modèle disponible : connectez un fournisseur dans Models & Providers."));
       return api.post<Conversation>("/chats", { providerId: pick.providerId, modelId: pick.modelId });
     },
     onSuccess: (conv) => {
@@ -68,21 +69,21 @@ export default function ChatsPage() {
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <h1 className="text-[15px] font-semibold">Chats</h1>
           <Button size="sm" variant="primary" onClick={() => create.mutate()} loading={create.isPending} disabled={modelsLoading}>
-            <Plus /> Nouveau
+            <Plus /> {t("Nouveau")}
           </Button>
         </div>
         <div className="px-3 pb-2">
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-subtle" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher" className="pl-8" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Rechercher")} className="pl-8" />
           </div>
         </div>
         <div className="flex gap-1 px-3 pb-2 text-xs">
           <button onClick={() => setArchived(false)} className={cn("rounded px-2 py-1", !archived ? "bg-surface-3 text-fg" : "text-fg-muted hover:text-fg")}>
-            Actifs
+            {t("Actifs")}
           </button>
           <button onClick={() => setArchived(true)} className={cn("rounded px-2 py-1", archived ? "bg-surface-3 text-fg" : "text-fg-muted hover:text-fg")}>
-            Archivés
+            {t("Archivés")}
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 pb-3">
@@ -106,7 +107,7 @@ export default function ChatsPage() {
               </Link>
             ))
           ) : (
-            <p className="px-2.5 py-6 text-center text-xs text-fg-subtle">{q ? "Aucun résultat" : archived ? "Aucun chat archivé" : "Aucune conversation"}</p>
+            <p className="px-2.5 py-6 text-center text-xs text-fg-subtle">{q ? t("Aucun résultat") : archived ? t("Aucun chat archivé") : t("Aucune conversation")}</p>
           )}
         </div>
       </div>
@@ -119,8 +120,8 @@ export default function ChatsPage() {
             {!modelsLoading && models.length === 0 ? (
               <EmptyState
                 icon={<Cpu />}
-                title="Aucun modèle connecté"
-                description="Connectez un fournisseur (abonnement Claude via Claude Code, clé API, ou Ollama en local) pour commencer à discuter."
+                title={t("Aucun modèle connecté")}
+                description={t("Connectez un fournisseur (abonnement Claude via Claude Code, clé API, ou Ollama en local) pour commencer à discuter.")}
                 action={
                   <Link to="/providers">
                     <Button variant="primary">Models & Providers</Button>
@@ -130,11 +131,11 @@ export default function ChatsPage() {
             ) : (
               <EmptyState
                 icon={<MessagesSquare />}
-                title="Chats indépendants"
-                description="Discutez avec n'importe quel modèle connecté, hors War Room. Changez de modèle en cours de conversation."
+                title={t("Chats indépendants")}
+                description={t("Discutez avec n'importe quel modèle connecté, hors War Room. Changez de modèle en cours de conversation.")}
                 action={
                   <Button variant="primary" onClick={() => create.mutate()} loading={create.isPending}>
-                    <Plus /> Nouvelle conversation
+                    <Plus /> {t("Nouvelle conversation")}
                   </Button>
                 }
               />
@@ -189,7 +190,7 @@ function ChatView({ id }: { id: string }) {
   const modelName = useMemo(() => modelLabel(models.data ?? [], conv?.providerId ?? null, conv?.modelId ?? null), [models.data, conv]);
 
   if (isLoading) return <div className="p-8"><Skeleton className="h-8 w-64" /></div>;
-  if (error || !conv) return <div className="p-8 text-sm text-danger">Conversation introuvable.</div>;
+  if (error || !conv) return <div className="p-8 text-sm text-danger">{t("Conversation introuvable.")}</div>;
 
   return (
     <div className="flex h-full flex-col">
@@ -221,26 +222,26 @@ function ChatView({ id }: { id: string }) {
                   /* ignore */
                 }
                 patch.mutate({ providerId, modelId });
-                toast(`Modèle changé : la suite de la conversation utilisera ${modelId}.`);
+                toast(t("Modèle changé : la suite de la conversation utilisera {model}.", { model: modelId }));
               }}
             />
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label="Paramètres du modèle">
+          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} aria-label={t("Paramètres du modèle")}>
             <SlidersHorizontal />
           </Button>
           <Menu
             trigger={
-              <Button variant="ghost" size="icon" aria-label="Plus">
+              <Button variant="ghost" size="icon" aria-label={t("Plus")}>
                 <MoreHorizontal />
               </Button>
             }
             items={[
-              { label: "Renommer", icon: <Pencil />, onSelect: () => setRenaming(true) },
+              { label: t("Renommer"), icon: <Pencil />, onSelect: () => setRenaming(true) },
               conv.archived
-                ? { label: "Désarchiver", icon: <ArchiveRestore />, onSelect: () => patch.mutate({ archived: false }) }
-                : { label: "Archiver", icon: <Archive />, onSelect: () => patch.mutate({ archived: true }) },
+                ? { label: t("Désarchiver"), icon: <ArchiveRestore />, onSelect: () => patch.mutate({ archived: false }) }
+                : { label: t("Archiver"), icon: <Archive />, onSelect: () => patch.mutate({ archived: true }) },
               "separator",
-              { label: "Supprimer", icon: <Trash2 />, danger: true, onSelect: () => confirm("Supprimer définitivement cette conversation ?") && remove.mutate() },
+              { label: t("Supprimer"), icon: <Trash2 />, danger: true, onSelect: () => confirm(t("Supprimer définitivement cette conversation ?")) && remove.mutate() },
             ]}
           />
         </div>
@@ -250,14 +251,14 @@ function ChatView({ id }: { id: string }) {
         <div className="mx-auto max-w-3xl px-5 py-4">
           {stream.messages.length === 0 ? (
             <div className="py-16 text-center text-sm text-fg-subtle">
-              Nouvelle conversation avec <span className="text-fg">{modelName}</span>.
+              {t("Nouvelle conversation avec")} <span className="text-fg">{modelName}</span>.
               {conv.summary ? null : null}
             </div>
           ) : (
             <>
               {conv.summary ? (
                 <div className="mb-2 rounded-md border border-border bg-surface px-3 py-2 text-xs text-fg-muted">
-                  Les messages les plus anciens ont été résumés pour réduire le contexte envoyé au modèle (l'historique complet reste affiché).
+                  {t("Les messages les plus anciens ont été résumés pour réduire le contexte envoyé au modèle (l'historique complet reste affiché).")}
                 </div>
               ) : null}
               {stream.messages.map((m) => (
@@ -280,7 +281,7 @@ function ChatView({ id }: { id: string }) {
             scope={{ conversationId: id }}
             improve={{ conversationId: id }}
             disabled={!conv.providerId || !conv.modelId}
-            disabledReason="Choisissez un modèle pour cette conversation."
+            disabledReason={t("Choisissez un modèle pour cette conversation.")}
             onSend={(content, attachments) =>
               stream.run(`/chats/${id}/messages`, { content, attachmentIds: attachments.map((a) => a.id) }, () => {
                 void qc.invalidateQueries({ queryKey: ["chats"] });
@@ -288,7 +289,7 @@ function ChatView({ id }: { id: string }) {
               })
             }
           />
-          <p className="mt-1.5 text-center text-[11px] text-fg-subtle">Entrée pour envoyer · Maj+Entrée pour un saut de ligne</p>
+          <p className="mt-1.5 text-center text-[11px] text-fg-subtle">{t("Entrée pour envoyer · Maj+Entrée pour un saut de ligne")}</p>
         </div>
       </div>
 
@@ -327,12 +328,12 @@ function ChatSettingsDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Paramètres de la conversation"
-      description={model ? `${model.displayName} · contexte ${model.contextWindow ? model.contextWindow.toLocaleString("fr-FR") + " tokens" : "inconnu"}` : undefined}
+      title={t("Paramètres de la conversation")}
+      description={model ? t("{model} · contexte {context}", { model: model.displayName, context: model.contextWindow ? t("{count} tokens", { count: model.contextWindow.toLocaleString(locale()) }) : t("inconnu") }) : undefined}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button
             variant="primary"
@@ -348,31 +349,31 @@ function ChatSettingsDialog({
               onOpenChange(false);
             }}
           >
-            Enregistrer
+            {t("Enregistrer")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <Field label="Prompt système" hint="Instructions permanentes envoyées avec chaque message.">
-          <Textarea value={system} onChange={(e) => setSystem(e.target.value)} rows={5} placeholder="Ex. : Tu es un expert en architecture logicielle…" />
+        <Field label={t("Prompt système")} hint={t("Instructions permanentes envoyées avec chaque message.")}>
+          <Textarea value={system} onChange={(e) => setSystem(e.target.value)} rows={5} placeholder={t("Ex. : Tu es un expert en architecture logicielle…")} />
         </Field>
         <div className="grid grid-cols-3 gap-3">
-          <Field label="Effort de raisonnement" hint={caps.effort ? "Modèles Claude" : "Non supporté par ce modèle"}>
+          <Field label={t("Effort de raisonnement")} hint={caps.effort ? t("Modèles Claude") : t("Non supporté par ce modèle")}>
             <Select value={effort} onChange={(e) => setEffort(e.target.value)} disabled={!caps.effort}>
-              <option value="">Par défaut</option>
-              <option value="low">Faible</option>
-              <option value="medium">Moyen</option>
-              <option value="high">Élevé</option>
-              <option value="xhigh">Très élevé</option>
+              <option value="">{t("Par défaut")}</option>
+              <option value="low">{t("Faible")}</option>
+              <option value="medium">{t("Moyen")}</option>
+              <option value="high">{t("Élevé")}</option>
+              <option value="xhigh">{t("Très élevé")}</option>
               <option value="max">Maximum</option>
             </Select>
           </Field>
-          <Field label="Température" hint={caps.temperature === false ? "Non supportée par ce modèle" : "0 à 2"}>
-            <Input type="number" step="0.1" min={0} max={2} value={temperature} onChange={(e) => setTemperature(e.target.value)} disabled={caps.temperature === false} placeholder="Défaut" />
+          <Field label={t("Température")} hint={caps.temperature === false ? t("Non supportée par ce modèle") : t("0 à 2")}>
+            <Input type="number" step="0.1" min={0} max={2} value={temperature} onChange={(e) => setTemperature(e.target.value)} disabled={caps.temperature === false} placeholder={t("Défaut")} />
           </Field>
-          <Field label="Tokens max en sortie">
-            <Input type="number" min={1} value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} placeholder="Défaut" />
+          <Field label={t("Tokens max en sortie")}>
+            <Input type="number" min={1} value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} placeholder={t("Défaut")} />
           </Field>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { db, schema } from "../db/client";
 import { badRequest, body, notFound } from "../lib/http";
 import { logActivity } from "../activity/log";
 import { createSecret, deleteSecret, listSecrets, updateSecret } from "./service";
+import { serverLang, tx } from "../lib/i18n";
 
 /** War Room secrets API. Values are write-only: no route ever returns them. */
 export const secretRoutes = new Hono();
@@ -29,7 +30,7 @@ secretRoutes.post("/warrooms/:id/secrets", async (c) => {
   );
   try {
     const s = await createSecret(roomId, input);
-    await logActivity({ type: "secret_added", summary: `Clé secrète ${s.name} ajoutée`, warRoomId: roomId });
+    await logActivity({ type: "secret_added", summary: tx(await serverLang(), `Clé secrète ${s.name} ajoutée`, `Secret key ${s.name} added`), warRoomId: roomId });
     return c.json(s);
   } catch (err) {
     badRequest(err instanceof Error ? err.message : String(err));
@@ -48,15 +49,15 @@ secretRoutes.patch("/secrets/:id", async (c) => {
     }),
   );
   const s = await updateSecret(c.req.param("id"), input);
-  if (!s) notFound("Clé");
-  if (input.value) await logActivity({ type: "secret_updated", summary: `Valeur de la clé ${s!.name} remplacée`, warRoomId: s!.warRoomId });
+  if (!s) notFound(tx(await serverLang(), "Clé", "Key"));
+  if (input.value) await logActivity({ type: "secret_updated", summary: tx(await serverLang(), `Valeur de la clé ${s!.name} remplacée`, `Value of key ${s!.name} replaced`), warRoomId: s!.warRoomId });
   return c.json(s);
 });
 
 secretRoutes.delete("/secrets/:id", async (c) => {
   const row = await db.query.roomSecrets.findFirst({ where: eq(schema.roomSecrets.id, c.req.param("id")) });
-  if (!row) notFound("Clé");
+  if (!row) notFound(tx(await serverLang(), "Clé", "Key"));
   await deleteSecret(row!.id);
-  await logActivity({ type: "secret_removed", summary: `Clé secrète ${row!.name} supprimée`, warRoomId: row!.warRoomId });
+  await logActivity({ type: "secret_removed", summary: tx(await serverLang(), `Clé secrète ${row!.name} supprimée`, `Secret key ${row!.name} deleted`), warRoomId: row!.warRoomId });
   return c.json({ ok: true });
 });

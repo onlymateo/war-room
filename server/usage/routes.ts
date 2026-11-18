@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { and, desc, eq, gte, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "../db/client";
 import { monthSpend, startOfMonth, warRoomSpend, agentSpend, projectSpend } from "./budget";
-import { STRATEGY_EXPLANATIONS } from "./optimizer";
+import { STRATEGY_EXPLANATIONS, STRATEGY_EXPLANATIONS_FR } from "./optimizer";
+import { serverLang } from "../lib/i18n";
 
 export const usageRoutes = new Hono();
 
@@ -139,5 +140,5 @@ usageRoutes.get("/usage/budgets", async (c) => {
     items.push({ scope: "agent", id: a.id, name: a.name, spentUsd: s, limitUsd: a.budgetUsd, level: level(s, a.budgetUsd) });
   }
   const rateLimit = await db.query.settings.findFirst({ where: eq(schema.settings.key, "claude-code.rateLimit") });
-  return c.json({ items, claudeCodeRateLimit: rateLimit?.value ?? null, strategies: STRATEGY_EXPLANATIONS });
+  return c.json({ items, claudeCodeRateLimit: rateLimit?.value ?? null, strategies: (await serverLang()) === "en" ? STRATEGY_EXPLANATIONS : STRATEGY_EXPLANATIONS_FR });
 });

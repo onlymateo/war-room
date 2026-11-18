@@ -9,6 +9,7 @@ import type { UsageEvent } from "@/lib/types";
 import { Badge, Card, CardHeader, EmptyState, Page, PageHeader, Progress, Section, Skeleton, Stat, Tabs, Tooltip } from "@/components/ui/primitives";
 import { CostKindBadge, modelLabel } from "@/components/domain";
 import { SubscriptionQuota, type BudgetsData } from "../dashboard/shared";
+import { locale, t } from "@/i18n";
 
 interface Agg {
   calls: number;
@@ -54,6 +55,8 @@ const PURPOSE_LABEL: Record<string, string> = {
   debate: "Débats",
 };
 
+const purposeLabel = (p: string) => (PURPOSE_LABEL[p] ? t(PURPOSE_LABEL[p]) : p);
+
 const n = (v: number | null | undefined) => (v === null || v === undefined ? null : Number(v));
 
 type Metric = "calls" | "tokens" | "billed";
@@ -93,15 +96,15 @@ function DailyChart({ days, rows, metric }: { days: number; rows: Summary["byDay
     <div className="relative">
       <div className="flex gap-2">
         <div className="relative flex w-12 shrink-0 flex-col justify-between text-right text-[10px] tabular-nums text-fg-subtle" style={{ height: H }}>
-          {[...ticks].reverse().map((t) => (
-            <span key={t} className="-translate-y-1/2 first:translate-y-0 last:translate-y-0">
-              {fmt(t)}
+          {[...ticks].reverse().map((tick) => (
+            <span key={tick} className="-translate-y-1/2 first:translate-y-0 last:translate-y-0">
+              {fmt(tick)}
             </span>
           ))}
         </div>
         <div className="relative min-w-0 flex-1" style={{ height: H }} onMouseLeave={() => setHover(null)}>
-          {ticks.map((t) => (
-            <div key={t} className="absolute inset-x-0 border-t border-border" style={{ bottom: `${(t / niceMax) * 100}%` }} />
+          {ticks.map((tick) => (
+            <div key={tick} className="absolute inset-x-0 border-t border-border" style={{ bottom: `${(tick / niceMax) * 100}%` }} />
           ))}
           <div className="absolute inset-0 flex items-end gap-[2px]">
             {series.map((s, i) => {
@@ -110,7 +113,7 @@ function DailyChart({ days, rows, metric }: { days: number; rows: Summary["byDay
                 <button
                   key={s.day}
                   type="button"
-                  aria-label={`${s.day} : ${s.value === null ? "inconnu" : fmt(s.value)}`}
+                  aria-label={t("{day} : {value}", { day: s.day, value: s.value === null ? t("inconnu") : fmt(s.value) })}
                   onMouseEnter={() => setHover(i)}
                   onFocus={() => setHover(i)}
                   onBlur={() => setHover(null)}
@@ -133,15 +136,15 @@ function DailyChart({ days, rows, metric }: { days: number; rows: Summary["byDay
       </div>
       {active ? (
         <div className="pointer-events-none absolute right-0 top-0 rounded-md border border-border bg-surface-3 px-2.5 py-1.5 text-xs shadow-lg">
-          <div className="font-semibold tabular-nums">{active.value === null ? "inconnu" : fmt(active.value)}</div>
-          <div className="text-fg-subtle">{new Date(active.day).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}</div>
+          <div className="font-semibold tabular-nums">{active.value === null ? t("inconnu") : fmt(active.value)}</div>
+          <div className="text-fg-subtle">{new Date(active.day).toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" })}</div>
           {active.row ? (
             <div className="mt-1 space-y-0.5 text-[11px] text-fg-muted tabular-nums">
-              <div>{active.row.calls} appels</div>
+              <div>{t("{n} appels", { n: active.row.calls })}</div>
               <div>
                 ↑ {fmtTokens(n(active.row.inputTokens), { compact: true })} · ↓ {fmtTokens(n(active.row.outputTokens), { compact: true })}
               </div>
-              <div>Facturé {fmtUsd(Number(active.row.billedUsd))}</div>
+              <div>{t("Facturé {amount}", { amount: fmtUsd(Number(active.row.billedUsd)) })}</div>
             </div>
           ) : null}
         </div>
@@ -165,13 +168,13 @@ function AggTable({ rows, label, empty }: { rows: (Agg & { key: string; label: R
         <thead>
           <tr className="border-b border-border text-left text-[11px] text-fg-subtle">
             <th className="px-4 py-2 font-medium">{label}</th>
-            <th className="px-3 py-2 text-right font-medium">Appels</th>
-            <th className="px-3 py-2 text-right font-medium">Entrée</th>
-            <th className="px-3 py-2 text-right font-medium">Sortie</th>
-            <th className="px-3 py-2 text-right font-medium">Cache lu</th>
-            <th className="px-3 py-2 text-right font-medium">Facturé API</th>
-            <th className="px-3 py-2 text-right font-medium">Éq. abonnement</th>
-            <th className="px-4 py-2 text-right font-medium">Latence moy.</th>
+            <th className="px-3 py-2 text-right font-medium">{t("Appels")}</th>
+            <th className="px-3 py-2 text-right font-medium">{t("Entrée")}</th>
+            <th className="px-3 py-2 text-right font-medium">{t("Sortie")}</th>
+            <th className="px-3 py-2 text-right font-medium">{t("Cache lu")}</th>
+            <th className="px-3 py-2 text-right font-medium">{t("Facturé API")}</th>
+            <th className="px-3 py-2 text-right font-medium">{t("Éq. abonnement")}</th>
+            <th className="px-4 py-2 text-right font-medium">{t("Latence moy.")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border tabular-nums">
@@ -180,7 +183,7 @@ function AggTable({ rows, label, empty }: { rows: (Agg & { key: string; label: R
               <td className="max-w-64 truncate px-4 py-2">{r.label}</td>
               <td className="px-3 py-2 text-right">
                 {r.calls}
-                {r.errors ? <span className="ml-1 text-danger">({r.errors} err.)</span> : null}
+                {r.errors ? <span className="ml-1 text-danger">{t("({n} err.)", { n: r.errors })}</span> : null}
               </td>
               <td className="px-3 py-2 text-right">{fmtTokens(n(r.inputTokens), { compact: true })}</td>
               <td className="px-3 py-2 text-right">{fmtTokens(n(r.outputTokens), { compact: true })}</td>
@@ -188,7 +191,7 @@ function AggTable({ rows, label, empty }: { rows: (Agg & { key: string; label: R
               <td className="px-3 py-2 text-right">
                 {fmtUsd(Number(r.billedUsd))}
                 {r.unknownCostCalls ? (
-                  <Tooltip content={`${r.unknownCostCalls} appel(s) au coût inconnu (prix du modèle non renseigné) non inclus`}>
+                  <Tooltip content={t("{n} appel(s) au coût inconnu (prix du modèle non renseigné) non inclus", { n: r.unknownCostCalls })}>
                     <span className="ml-1 text-warning">+?</span>
                   </Tooltip>
                 ) : null}
@@ -216,7 +219,7 @@ export default function UsagePage() {
   const events = useQuery({ queryKey: ["usage-events"], queryFn: () => api.get<UsageEvent[]>("/usage/events?limit=100"), refetchInterval: 30_000 });
   const budgets = useQuery({ queryKey: qk.budgets, queryFn: () => api.get<BudgetsData>("/usage/budgets"), refetchInterval: 30_000 });
 
-  const t = summary.data?.totals;
+  const tot = summary.data?.totals;
   const md = models.data ?? [];
 
   const breakdownRows = useMemo(() => {
@@ -224,7 +227,7 @@ export default function UsagePage() {
     if (!s) return [];
     switch (breakdown) {
       case "agent":
-        return s.byAgent.map((r) => ({ ...r, key: r.agentId, label: r.name ?? "agent supprimé" }));
+        return s.byAgent.map((r) => ({ ...r, key: r.agentId, label: r.name ?? t("agent supprimé") }));
       case "room":
         return s.byRoom.map((r) => ({
           ...r,
@@ -234,11 +237,11 @@ export default function UsagePage() {
               {r.name}
             </Link>
           ) : (
-            "War Room supprimée"
+            t("War Room supprimée")
           ),
         }));
       case "purpose":
-        return s.byPurpose.map((r) => ({ ...r, key: r.purpose, label: PURPOSE_LABEL[r.purpose] ?? r.purpose }));
+        return s.byPurpose.map((r) => ({ ...r, key: r.purpose, label: purposeLabel(r.purpose) }));
       default:
         return s.byModel.map((r) => ({ ...r, key: `${r.providerId}:${r.modelId}`, label: `${modelLabel(md, r.providerId, r.modelId)} · ${r.providerId}` }));
     }
@@ -248,7 +251,7 @@ export default function UsagePage() {
     <Page wide>
       <PageHeader
         title="Usage & Costs"
-        description="Consommation réelle des IA. Les tokens viennent des fournisseurs ; les coûts sont calculés à partir de ces tokens et du prix connu du modèle."
+        description={t("Consommation réelle des IA. Les tokens viennent des fournisseurs ; les coûts sont calculés à partir de ces tokens et du prix connu du modèle.")}
         icon={<BarChart3 />}
         actions={
           <div className="flex rounded-md border border-border bg-surface p-0.5">
@@ -258,7 +261,7 @@ export default function UsagePage() {
                 onClick={() => setDays(d)}
                 className={cn("h-7 rounded px-2.5 text-xs", days === d ? "bg-surface-3 font-medium text-fg" : "text-fg-muted hover:text-fg")}
               >
-                {d} j
+                {t("{n} j", { n: d })}
               </button>
             ))}
           </div>
@@ -272,43 +275,48 @@ export default function UsagePage() {
           ))}
         </div>
       ) : summary.isError ? (
-        <EmptyState icon={<AlertTriangle />} title="Impossible de charger l'usage" description={(summary.error as Error).message} />
+        <EmptyState icon={<AlertTriangle />} title={t("Impossible de charger l'usage")} description={(summary.error as Error).message} />
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-            <Stat label="Appels" value={t?.calls ?? 0} hint={t?.errors ? `${t.errors} en erreur` : `sur ${days} jours`} />
-            <Stat label="Tokens entrée" value={fmtTokens(n(t?.inputTokens), { compact: true })} hint="hors cache, rapportés" />
-            <Stat label="Tokens sortie" value={fmtTokens(n(t?.outputTokens), { compact: true })} hint="rapportés par les fournisseurs" />
+            <Stat label={t("Appels")} value={tot?.calls ?? 0} hint={tot?.errors ? t("{n} en erreur", { n: tot.errors }) : t("sur {n} jours", { n: days })} />
+            <Stat label={t("Tokens entrée")} value={fmtTokens(n(tot?.inputTokens), { compact: true })} hint={t("hors cache, rapportés")} />
+            <Stat label={t("Tokens sortie")} value={fmtTokens(n(tot?.outputTokens), { compact: true })} hint={t("rapportés par les fournisseurs")} />
             <Stat
-              label="Tokens cache"
-              value={fmtTokens(n(t?.cacheReadTokens), { compact: true })}
-              hint={`lus · ${fmtTokens(n(t?.cacheWriteTokens), { compact: true })} écrits`}
+              label={t("Tokens cache")}
+              value={fmtTokens(n(tot?.cacheReadTokens), { compact: true })}
+              hint={t("lus · {n} écrits", { n: fmtTokens(n(tot?.cacheWriteTokens), { compact: true }) })}
             />
             <Stat
-              label="Facturé API"
-              value={fmtUsd(Number(t?.billedUsd ?? 0))}
-              hint={t?.unknownCostCalls ? `+ ${t.unknownCostCalls} appel(s) au coût inconnu` : "argent réellement dépensé"}
+              label={t("Facturé API")}
+              value={fmtUsd(Number(tot?.billedUsd ?? 0))}
+              hint={tot?.unknownCostCalls ? t("+ {n} appel(s) au coût inconnu", { n: tot.unknownCostCalls }) : t("argent réellement dépensé")}
             />
             <Stat
-              label="Équivalent abonnement"
-              value={Number(t?.subscriptionEquivUsd ?? 0) ? `≈${fmtUsd(Number(t?.subscriptionEquivUsd))}` : "—"}
-              hint="valeur API indicative, non dépensée"
+              label={t("Équivalent abonnement")}
+              value={Number(tot?.subscriptionEquivUsd ?? 0) ? `≈${fmtUsd(Number(tot?.subscriptionEquivUsd))}` : "—"}
+              hint={t("valeur API indicative, non dépensée")}
             />
           </div>
 
           <div className="flex items-start gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-fg-muted">
             <Info className="mt-0.5 size-3.5 shrink-0" />
             <span>
-              <strong className="text-fg">Exact</strong> : tokens et durée de chaque appel, tels que renvoyés par le fournisseur. <strong className="text-fg">Calculé</strong> : coût
-              API = tokens × prix du modèle (source affichée dans Models & Providers). <strong className="text-fg">Indicatif</strong> : la valeur « équivalent API » de Claude
-              Code n'est pas une dépense, l'usage est couvert par l'abonnement. Quand le prix ou les tokens manquent, le coût est « inconnu » et n'est pas additionné.
+              <strong className="text-fg">{t("Exact")}</strong>
+              {t(" : tokens et durée de chaque appel, tels que renvoyés par le fournisseur.")}{" "}
+              <strong className="text-fg">{t("Calculé")}</strong>
+              {t(" : coût API = tokens × prix du modèle (source affichée dans Models & Providers).")}{" "}
+              <strong className="text-fg">{t("Indicatif")}</strong>
+              {t(
+                " : la valeur « équivalent API » de Claude Code n'est pas une dépense, l'usage est couvert par l'abonnement. Quand le prix ou les tokens manquent, le coût est « inconnu » et n'est pas additionné.",
+              )}
             </span>
           </div>
 
           <Card>
             <CardHeader
-              title={metric === "calls" ? "Appels par jour" : metric === "tokens" ? "Tokens (entrée + sortie) par jour" : "Coût API facturé par jour"}
-              description={`${days} derniers jours`}
+              title={metric === "calls" ? t("Appels par jour") : metric === "tokens" ? t("Tokens (entrée + sortie) par jour") : t("Coût API facturé par jour")}
+              description={t("{n} derniers jours", { n: days })}
               actions={
                 <div className="flex rounded-md border border-border p-0.5">
                   {(
@@ -323,7 +331,7 @@ export default function UsagePage() {
                       onClick={() => setMetric(k)}
                       className={cn("h-6 rounded px-2 text-[11px]", metric === k ? "bg-surface-3 font-medium text-fg" : "text-fg-muted hover:text-fg")}
                     >
-                      {l}
+                      {t(l)}
                     </button>
                   ))}
                 </div>
@@ -333,7 +341,7 @@ export default function UsagePage() {
               {summary.data?.byDay.length ? (
                 <DailyChart days={days} rows={summary.data.byDay} metric={metric} />
               ) : (
-                <p className="py-10 text-center text-xs text-fg-subtle">Aucun appel enregistré sur la période.</p>
+                <p className="py-10 text-center text-xs text-fg-subtle">{t("Aucun appel enregistré sur la période.")}</p>
               )}
             </div>
           </Card>
@@ -344,22 +352,25 @@ export default function UsagePage() {
                 value={breakdown}
                 onValueChange={setBreakdown}
                 items={[
-                  { value: "model", label: "Par modèle", count: summary.data?.byModel.length },
-                  { value: "agent", label: "Par agent", count: summary.data?.byAgent.length },
-                  { value: "room", label: "Par War Room", count: summary.data?.byRoom.length },
-                  { value: "purpose", label: "Par usage", count: summary.data?.byPurpose.length },
+                  { value: "model", label: t("Par modèle"), count: summary.data?.byModel.length },
+                  { value: "agent", label: t("Par agent"), count: summary.data?.byAgent.length },
+                  { value: "room", label: t("Par War Room"), count: summary.data?.byRoom.length },
+                  { value: "purpose", label: t("Par usage"), count: summary.data?.byPurpose.length },
                 ]}
               />
             </div>
             <AggTable
               rows={breakdownRows}
-              label={{ model: "Modèle", agent: "Agent", room: "War Room", purpose: "Usage" }[breakdown] ?? ""}
-              empty="Aucune donnée sur la période."
+              label={t({ model: "Modèle", agent: "Agent", room: "War Room", purpose: "Usage" }[breakdown] ?? "")}
+              empty={t("Aucune donnée sur la période.")}
             />
           </Card>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <Section title="Contextes" description="Taille du dernier contexte envoyé (exacte, rapportée par le fournisseur) par rapport à la fenêtre maximale connue du modèle.">
+            <Section
+              title={t("Contextes")}
+              description={t("Taille du dernier contexte envoyé (exacte, rapportée par le fournisseur) par rapport à la fenêtre maximale connue du modèle.")}
+            >
               <Card>
                 {contexts.data?.length ? (
                   <div className="divide-y divide-border">
@@ -369,16 +380,16 @@ export default function UsagePage() {
                         <div key={`${c.conversationId}-${c.agentId}`} className="space-y-1.5 px-4 py-2.5">
                           <div className="flex items-center justify-between gap-3 text-xs">
                             <div className="min-w-0">
-                              <div className="truncate font-medium text-fg">{c.agentName ?? c.title ?? "Conversation"}</div>
+                              <div className="truncate font-medium text-fg">{c.agentName ?? c.title ?? t("Conversation")}</div>
                               <div className="truncate text-[11px] text-fg-subtle">
                                 {c.agentName && c.title ? `${c.title} · ` : ""}
                                 {modelLabel(md, c.providerId, c.modelId)}
                               </div>
                             </div>
                             <div className="shrink-0 text-right tabular-nums">
-                              <div>{ratio === null ? "inconnu" : fmtPct(ratio)}</div>
+                              <div>{ratio === null ? t("inconnu") : fmtPct(ratio)}</div>
                               <div className="text-[11px] text-fg-subtle">
-                                {fmtTokens(c.contextTokens, { compact: true })} / {c.contextWindow ? fmtTokens(c.contextWindow, { compact: true }) : "fenêtre inconnue"}
+                                {fmtTokens(c.contextTokens, { compact: true })} / {c.contextWindow ? fmtTokens(c.contextWindow, { compact: true }) : t("fenêtre inconnue")}
                               </div>
                             </div>
                           </div>
@@ -388,12 +399,12 @@ export default function UsagePage() {
                     })}
                   </div>
                 ) : (
-                  <p className="px-4 py-6 text-center text-xs text-fg-subtle">Aucun contexte mesuré pour l'instant.</p>
+                  <p className="px-4 py-6 text-center text-xs text-fg-subtle">{t("Aucun contexte mesuré pour l'instant.")}</p>
                 )}
               </Card>
             </Section>
 
-            <Section title="Budgets & alertes" description="Seuils d'alerte à 50 %, 80 % et 100 %. Seules les dépenses API réelles comptent.">
+            <Section title={t("Budgets & alertes")} description={t("Seuils d'alerte à 50 %, 80 % et 100 %. Seules les dépenses API réelles comptent.")}>
               <div className="space-y-4">
                 {budgets.data?.claudeCodeRateLimit ? <SubscriptionQuota raw={budgets.data.claudeCodeRateLimit} /> : null}
                 <Card>
@@ -403,16 +414,16 @@ export default function UsagePage() {
                         <div key={`${b.scope}-${b.id}`} className="space-y-1.5 px-4 py-2.5">
                           <div className="flex items-center justify-between gap-3 text-xs">
                             <span className="min-w-0 truncate">
-                              <span className="text-fg-subtle">{SCOPE_LABEL[b.scope]} · </span>
+                              <span className="text-fg-subtle">{SCOPE_LABEL[b.scope] ? t(SCOPE_LABEL[b.scope]) : undefined} · </span>
                               {b.name}
                             </span>
                             <span className="flex shrink-0 items-center gap-2 tabular-nums">
                               {b.level !== null && b.level >= 0.5 ? (
                                 <Badge tone={b.level >= 1 ? "danger" : b.level >= 0.8 ? "warning" : "neutral"}>
-                                  <AlertTriangle /> {Math.round(b.level * 100)} %
+                                  <AlertTriangle /> {t("{pct} %", { pct: Math.round(b.level * 100) })}
                                 </Badge>
                               ) : null}
-                              {fmtUsd(b.spentUsd)} {b.limitUsd !== null ? <span className="text-fg-subtle">/ {fmtUsd(b.limitUsd)}</span> : <span className="text-fg-subtle">· sans limite</span>}
+                              {fmtUsd(b.spentUsd)} {b.limitUsd !== null ? <span className="text-fg-subtle">/ {fmtUsd(b.limitUsd)}</span> : <span className="text-fg-subtle">· {t("sans limite")}</span>}
                             </span>
                           </div>
                           {b.limitUsd ? (
@@ -427,16 +438,19 @@ export default function UsagePage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="px-4 py-6 text-center text-xs text-fg-subtle">Aucun budget défini ni dépense enregistrée.</p>
+                    <p className="px-4 py-6 text-center text-xs text-fg-subtle">{t("Aucun budget défini ni dépense enregistrée.")}</p>
                   )}
                   <p className="border-t border-border px-4 py-2 text-[11px] text-fg-subtle">
-                    Budget mensuel global dans <Link to="/settings" className="text-accent hover:underline">Settings</Link> ; budgets par War Room, agent et projet dans leurs
-                    paramètres.
+                    {t("Budget mensuel global dans")}{" "}
+                    <Link to="/settings" className="text-accent hover:underline">
+                      Settings
+                    </Link>
+                    {t(" ; budgets par War Room, agent et projet dans leurs paramètres.")}
                   </p>
                 </Card>
                 {budgets.data?.strategies ? (
                   <Card>
-                    <CardHeader title="Stratégies de coût" description="Choisies par War Room ; elles guident l'orchestrateur et le choix des modèles." />
+                    <CardHeader title={t("Stratégies de coût")} description={t("Choisies par War Room ; elles guident l'orchestrateur et le choix des modèles.")} />
                     <div className="divide-y divide-border">
                       {Object.entries(budgets.data.strategies).map(([k, s]) => (
                         <div key={k} className="px-4 py-2.5 text-xs">
@@ -451,22 +465,22 @@ export default function UsagePage() {
             </Section>
           </div>
 
-          <Section title="Derniers appels" description="Chaque ligne est un appel réel à un modèle.">
+          <Section title={t("Derniers appels")} description={t("Chaque ligne est un appel réel à un modèle.")}>
             <Card>
               {events.data?.length ? (
                 <div className="max-h-[480px] overflow-auto">
                   <table className="w-full text-[12.5px]">
                     <thead className="sticky top-0 bg-surface">
                       <tr className="border-b border-border text-left text-[11px] text-fg-subtle">
-                        <th className="px-4 py-2 font-medium">Date</th>
-                        <th className="px-3 py-2 font-medium">Modèle</th>
-                        <th className="px-3 py-2 font-medium">Usage</th>
-                        <th className="px-3 py-2 text-right font-medium">Entrée</th>
-                        <th className="px-3 py-2 text-right font-medium">Sortie</th>
-                        <th className="px-3 py-2 text-right font-medium">Cache lu</th>
-                        <th className="px-3 py-2 text-right font-medium">Coût</th>
-                        <th className="px-3 py-2 font-medium">Type</th>
-                        <th className="px-4 py-2 text-right font-medium">Durée</th>
+                        <th className="px-4 py-2 font-medium">{t("Date")}</th>
+                        <th className="px-3 py-2 font-medium">{t("Modèle")}</th>
+                        <th className="px-3 py-2 font-medium">{t("Usage")}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t("Entrée")}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t("Sortie")}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t("Cache lu")}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t("Coût")}</th>
+                        <th className="px-3 py-2 font-medium">{t("Type")}</th>
+                        <th className="px-4 py-2 text-right font-medium">{t("Durée")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border tabular-nums">
@@ -475,8 +489,8 @@ export default function UsagePage() {
                           <td className="whitespace-nowrap px-4 py-1.5 text-fg-muted">{fmtDateTime(e.createdAt)}</td>
                           <td className="max-w-56 truncate px-3 py-1.5">{modelLabel(md, e.providerId, e.modelId)}</td>
                           <td className="px-3 py-1.5 text-fg-muted">
-                            {PURPOSE_LABEL[e.purpose] ?? e.purpose}
-                            {e.status !== "ok" ? <Badge tone={e.status === "error" ? "danger" : "neutral"} className="ml-1.5">{e.status === "error" ? "erreur" : "interrompu"}</Badge> : null}
+                            {purposeLabel(e.purpose)}
+                            {e.status !== "ok" ? <Badge tone={e.status === "error" ? "danger" : "neutral"} className="ml-1.5">{e.status === "error" ? t("erreur") : t("interrompu")}</Badge> : null}
                           </td>
                           <td className="px-3 py-1.5 text-right">{fmtTokens(e.inputTokens, { compact: true })}</td>
                           <td className="px-3 py-1.5 text-right">{fmtTokens(e.outputTokens, { compact: true })}</td>
@@ -494,7 +508,7 @@ export default function UsagePage() {
                   </table>
                 </div>
               ) : (
-                <p className="px-4 py-6 text-center text-xs text-fg-subtle">Aucun appel enregistré.</p>
+                <p className="px-4 py-6 text-center text-xs text-fg-subtle">{t("Aucun appel enregistré.")}</p>
               )}
             </Card>
           </Section>

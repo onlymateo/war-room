@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { qk, useAgents, useWarRooms } from "@/lib/queries";
 import type { Memory, Project } from "@/lib/types";
 import { fmtRelative } from "@/lib/utils";
+import { t } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Badge, Card, Dialog, EmptyState, Skeleton } from "@/components/ui/primitives";
@@ -93,7 +94,7 @@ export function MemoryPanel() {
   const remove = useMutation({
     mutationFn: (id: string) => api.del(`/memories/${id}`),
     onSuccess: () => {
-      toast.success("Entrée supprimée");
+      toast.success(t("Entrée supprimée"));
       invalidate();
     },
     onError: (err) => toast.error((err as Error).message),
@@ -106,16 +107,14 @@ export function MemoryPanel() {
       <div className="flex items-start gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-xs text-fg-muted">
         <Info className="mt-0.5 size-3.5 shrink-0 text-accent" />
         <p>
-          Cette mémoire structurée sert à consulter, corriger et supprimer ce qui est retenu. Elle n'est pas encore injectée automatiquement dans les prompts des agents.
-          Ce qui est réellement transmis aujourd'hui : le champ « mémoire partagée » de chaque War Room, la mémoire individuelle de chaque agent (dans sa configuration) et
-          les résumés automatiques des conversations longues.
+          {t("Cette mémoire structurée sert à consulter, corriger et supprimer ce qui est retenu. Elle n'est pas encore injectée automatiquement dans les prompts des agents. Ce qui est réellement transmis aujourd'hui : le champ « mémoire partagée » de chaque War Room, la mémoire individuelle de chaque agent (dans sa configuration) et les résumés automatiques des conversations longues.")}
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-60">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-subtle" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher dans la mémoire…" className="pl-8" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Rechercher dans la mémoire…")} className="pl-8" />
         </div>
         <Select
           value={scope}
@@ -125,16 +124,16 @@ export function MemoryPanel() {
           }}
           className="w-40"
         >
-          <option value="">Toutes portées</option>
+          <option value="">{t("Toutes portées")}</option>
           {(Object.keys(SCOPE_LABEL) as Scope[]).map((s) => (
             <option key={s} value={s}>
-              {SCOPE_LABEL[s]}
+              {t(SCOPE_LABEL[s])}
             </option>
           ))}
         </Select>
         {scope && scope !== "global" && scope !== "conversation" ? (
           <Select value={scopeId} onChange={(e) => setScopeId(e.target.value)} className="w-52">
-            <option value="">Tous</option>
+            <option value="">{t("Tous")}</option>
             {scopeOptions(scope).map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}
@@ -143,36 +142,36 @@ export function MemoryPanel() {
           </Select>
         ) : null}
         <Select value={kind} onChange={(e) => setKind(e.target.value as Kind | "")} className="w-36">
-          <option value="">Tous types</option>
+          <option value="">{t("Tous types")}</option>
           {(Object.keys(KIND_LABEL) as Kind[]).map((k) => (
             <option key={k} value={k}>
-              {KIND_LABEL[k]}
+              {t(KIND_LABEL[k])}
             </option>
           ))}
         </Select>
         <Button variant="primary" className="ml-auto" onClick={() => setCreateOpen(true)}>
-          <Plus /> Ajouter
+          <Plus /> {t("Ajouter")}
         </Button>
       </div>
 
       {memories.isLoading ? (
         <Skeleton className="h-48 w-full" />
       ) : memories.isError ? (
-        <EmptyState title="Impossible de charger la mémoire" description={(memories.error as Error).message} />
+        <EmptyState title={t("Impossible de charger la mémoire")} description={(memories.error as Error).message} />
       ) : !list.length ? (
         <EmptyState
           icon={<Brain />}
-          title="Aucune entrée"
-          description="Ajoutez des faits, décisions et contraintes à retenir pour vos projets, War Rooms et agents."
+          title={t("Aucune entrée")}
+          description={t("Ajoutez des faits, décisions et contraintes à retenir pour vos projets, War Rooms et agents.")}
         />
       ) : (
         <Card className="divide-y divide-border">
           {list.map((m) => (
             <div key={m.id} className="group flex gap-3 px-4 py-3">
               <div className="flex w-36 shrink-0 flex-col items-start gap-1">
-                <Badge tone={KIND_TONE[m.kind]}>{KIND_LABEL[m.kind]}</Badge>
+                <Badge tone={KIND_TONE[m.kind]}>{t(KIND_LABEL[m.kind])}</Badge>
                 <span className="text-[11px] text-fg-subtle">
-                  {SCOPE_LABEL[m.scope]}
+                  {t(SCOPE_LABEL[m.scope])}
                   {scopeTargetName(m) ? ` · ${scopeTargetName(m)}` : ""}
                 </span>
               </div>
@@ -182,10 +181,10 @@ export function MemoryPanel() {
                     <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={4} autoFocus />
                     <div className="flex gap-2">
                       <Button size="sm" variant="primary" disabled={!editText.trim()} loading={update.isPending} onClick={() => update.mutate({ id: m.id, patch: { content: editText.trim() } })}>
-                        Enregistrer
+                        {t("Enregistrer")}
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
-                        Annuler
+                        {t("Annuler")}
                       </Button>
                     </div>
                   </div>
@@ -193,7 +192,7 @@ export function MemoryPanel() {
                   <div className="whitespace-pre-wrap text-[13px] leading-relaxed">{m.content}</div>
                 )}
                 <div className="mt-1 text-[11px] text-fg-subtle">
-                  {m.source} · modifié {fmtRelative(m.updatedAt)}
+                  {t("{source} · modifié {time}", { source: m.source, time: fmtRelative(m.updatedAt) })}
                 </div>
               </div>
               {editing !== m.id ? (
@@ -202,18 +201,18 @@ export function MemoryPanel() {
                     value={m.kind}
                     onChange={(e) => update.mutate({ id: m.id, patch: { kind: e.target.value as Kind } })}
                     className="h-7 w-28 text-xs"
-                    aria-label="Type"
+                    aria-label={t("Type")}
                   >
                     {(Object.keys(KIND_LABEL) as Kind[]).map((k) => (
                       <option key={k} value={k}>
-                        {KIND_LABEL[k]}
+                        {t(KIND_LABEL[k])}
                       </option>
                     ))}
                   </Select>
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label="Modifier"
+                    aria-label={t("Modifier")}
                     onClick={() => {
                       setEditing(m.id);
                       setEditText(m.content);
@@ -221,7 +220,7 @@ export function MemoryPanel() {
                   >
                     <Pencil />
                   </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label="Supprimer" onClick={() => remove.mutate(m.id)}>
+                  <Button variant="ghost" size="icon-sm" aria-label={t("Supprimer")} onClick={() => remove.mutate(m.id)}>
                     <Trash2 />
                   </Button>
                 </div>
@@ -262,7 +261,7 @@ function CreateMemoryDialog({
   const create = useMutation({
     mutationFn: () => api.post<Memory>("/memories", { scope, scopeId: needsTarget ? scopeId : null, kind, content: content.trim() }),
     onSuccess: () => {
-      toast.success("Entrée ajoutée");
+      toast.success(t("Entrée ajoutée"));
       onCreated();
       onOpenChange(false);
       setContent("");
@@ -274,21 +273,21 @@ function CreateMemoryDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Nouvelle entrée de mémoire"
+      title={t("Nouvelle entrée de mémoire")}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button variant="primary" disabled={!content.trim() || (needsTarget && !scopeId)} loading={create.isPending} onClick={() => create.mutate()}>
-            Ajouter
+            {t("Ajouter")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Portée">
+          <Field label={t("Portée")}>
             <Select
               value={scope}
               onChange={(e) => {
@@ -298,25 +297,25 @@ function CreateMemoryDialog({
             >
               {(["global", "project", "warroom", "agent"] as Scope[]).map((s) => (
                 <option key={s} value={s}>
-                  {SCOPE_LABEL[s]}
+                  {t(SCOPE_LABEL[s])}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Type">
+          <Field label={t("Type")}>
             <Select value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
               {(Object.keys(KIND_LABEL) as Kind[]).map((k) => (
                 <option key={k} value={k}>
-                  {KIND_LABEL[k]}
+                  {t(KIND_LABEL[k])}
                 </option>
               ))}
             </Select>
           </Field>
         </div>
         {needsTarget ? (
-          <Field label={SCOPE_LABEL[scope]}>
+          <Field label={t(SCOPE_LABEL[scope])}>
             <Select value={scopeId} onChange={(e) => setScopeId(e.target.value)}>
-              <option value="">Choisir…</option>
+              <option value="">{t("Choisir…")}</option>
               {scopeOptions(scope).map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
@@ -325,8 +324,8 @@ function CreateMemoryDialog({
             </Select>
           </Field>
         ) : null}
-        <Field label="Contenu">
-          <Textarea value={content} onChange={(e) => setContent(e.target.value)} rows={5} autoFocus placeholder="Ex. : la base de données cible est PostgreSQL 16." />
+        <Field label={t("Contenu")}>
+          <Textarea value={content} onChange={(e) => setContent(e.target.value)} rows={5} autoFocus placeholder={t("Ex. : la base de données cible est PostgreSQL 16.")} />
         </Field>
       </div>
     </Dialog>

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { qk } from "@/lib/queries";
 import { fmtRelative, fmtTokens } from "@/lib/utils";
+import { t } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { Badge, Card, Dialog, EmptyState, Page, PageHeader, Skeleton, Tooltip } from "@/components/ui/primitives";
@@ -60,7 +61,7 @@ export default function SkillsPage() {
   const remove = useMutation({
     mutationFn: (id: string) => api.del(`/skills?id=${encodeURIComponent(id)}`),
     onSuccess: () => {
-      toast.success("Skill supprimé de WAR ROOM");
+      toast.success(t("Skill supprimé de WAR ROOM"));
       void qc.invalidateQueries({ queryKey: qk.skills });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
@@ -71,10 +72,10 @@ export default function SkillsPage() {
       <PageHeader
         icon={<Sparkles />}
         title="Skills"
-        description="Compétences au format Agent Skills (SKILL.md) détectées sur cette machine et installées dans WAR ROOM."
+        description={t("Compétences au format Agent Skills (SKILL.md) détectées sur cette machine et installées dans WAR ROOM.")}
         actions={
           <Button variant="primary" onClick={() => setCreateOpen(true)}>
-            <Plus /> Créer un skill
+            <Plus /> {t("Créer un skill")}
           </Button>
         }
       />
@@ -83,13 +84,13 @@ export default function SkillsPage() {
         <Info className="mt-0.5 size-4 shrink-0 text-accent" />
         <div className="space-y-1">
           <p>
-            Sources analysées en lecture seule : <span className="text-fg">~/.claude/skills</span> (vos skills Claude Code),{" "}
-            <span className="text-fg">~/.claude/plugins/marketplaces</span> (disponibles, non installés) et <span className="text-fg">data/skills</span> (WAR ROOM).
-            WAR ROOM ne modifie jamais <span className="text-fg">~/.claude</span>.
+            {t("Sources analysées en lecture seule :")} <span className="text-fg">~/.claude/skills</span> {t("(vos skills Claude Code),")}{" "}
+            <span className="text-fg">~/.claude/plugins/marketplaces</span> {t("(disponibles, non installés) et")} <span className="text-fg">data/skills</span>{" "}
+            {t("(WAR ROOM). WAR ROOM ne modifie jamais")} <span className="text-fg">~/.claude</span>.
           </p>
           <p>
-            « Installer dans WAR ROOM » copie le skill dans <span className="text-fg">data/skills</span>. On attribue ensuite un skill à un agent depuis les
-            paramètres de l'agent dans une War Room : son contenu est injecté dans le prompt système de l'agent, ce qui consomme du contexte à chaque appel.
+            {t("« Installer dans WAR ROOM » copie le skill dans")} <span className="text-fg">data/skills</span>.{" "}
+            {t("On attribue ensuite un skill à un agent depuis les paramètres de l'agent dans une War Room : son contenu est injecté dans le prompt système de l'agent, ce qui consomme du contexte à chaque appel.")}
           </p>
         </div>
       </Card>
@@ -97,21 +98,21 @@ export default function SkillsPage() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative w-64">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-subtle" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un skill…" className="pl-8" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Rechercher un skill…")} className="pl-8" />
         </div>
         <div className="w-44">
           <Select value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
-            <option value="all">Tous ({(skills.data ?? []).length})</option>
-            <option value="installed">Installés ({counts.installed})</option>
-            <option value="available">Disponibles ({counts.available})</option>
+            <option value="all">{t("Tous ({count})", { count: (skills.data ?? []).length })}</option>
+            <option value="installed">{t("Installés ({count})", { count: counts.installed })}</option>
+            <option value="available">{t("Disponibles ({count})", { count: counts.available })}</option>
           </Select>
         </div>
         <div className="w-56">
           <Select value={source} onChange={(e) => setSource(e.target.value as typeof source)}>
-            <option value="all">Toutes les sources</option>
+            <option value="all">{t("Toutes les sources")}</option>
             <option value="warroom">WAR ROOM</option>
-            <option value="claude-code-user">Claude Code (utilisateur)</option>
-            <option value="claude-code-marketplace">Marketplace Claude Code</option>
+            <option value="claude-code-user">{t("Claude Code (utilisateur)")}</option>
+            <option value="claude-code-marketplace">{t("Marketplace Claude Code")}</option>
           </Select>
         </div>
       </div>
@@ -123,15 +124,15 @@ export default function SkillsPage() {
           ))}
         </div>
       ) : skills.isError ? (
-        <EmptyState title="Impossible de charger les skills" description={(skills.error as Error).message} />
+        <EmptyState title={t("Impossible de charger les skills")} description={(skills.error as Error).message} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Sparkles />}
-          title="Aucun skill ne correspond"
-          description="Modifiez les filtres, ou créez un skill personnalisé pour vos agents."
+          title={t("Aucun skill ne correspond")}
+          description={t("Modifiez les filtres, ou créez un skill personnalisé pour vos agents.")}
           action={
             <Button onClick={() => setCreateOpen(true)}>
-              <Plus /> Créer un skill
+              <Plus /> {t("Créer un skill")}
             </Button>
           }
         />
@@ -147,40 +148,40 @@ export default function SkillsPage() {
                     {s.category ? <Badge>{s.category}</Badge> : null}
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <Badge tone={s.status === "installed" ? "success" : "neutral"}>{s.status === "installed" ? "Installé" : "Disponible"}</Badge>
+                    <Badge tone={s.status === "installed" ? "success" : "neutral"}>{s.status === "installed" ? t("Installé") : t("Disponible")}</Badge>
                     <Badge tone="outline" title={s.sourceLabel}>
-                      {SOURCE_LABEL[s.source]}
+                      {t(SOURCE_LABEL[s.source])}
                     </Badge>
                     {!s.trusted ? (
                       <Badge tone="warning">
-                        <ShieldAlert /> Source non vérifiée
+                        <ShieldAlert /> {t("Source non vérifiée")}
                       </Badge>
                     ) : null}
                   </div>
                 </div>
               </div>
-              <p className="mt-2 line-clamp-3 text-xs text-fg-muted">{s.description || "Pas de description."}</p>
+              <p className="mt-2 line-clamp-3 text-xs text-fg-muted">{s.description || t("Pas de description.")}</p>
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-subtle">
-                <Tooltip content="Estimation (≈4 caractères par token) des tokens ajoutés au prompt d'un agent auquel ce skill est attribué">
-                  <span>~{fmtTokens(s.contextTokens, { compact: true })} tokens (estimation)</span>
+                <Tooltip content={t("Estimation (≈4 caractères par token) des tokens ajoutés au prompt d'un agent auquel ce skill est attribué")}>
+                  <span>{t("~{count} tokens (estimation)", { count: fmtTokens(s.contextTokens, { compact: true }) })}</span>
                 </Tooltip>
-                <span>Format Agent Skills (SKILL.md)</span>
-                <span>Modifié {fmtRelative(s.updatedAt)}</span>
+                <span>{t("Format Agent Skills (SKILL.md)")}</span>
+                <span>{t("Modifié {time}", { time: fmtRelative(s.updatedAt) })}</span>
               </div>
               <div className="mt-1.5 text-[11px] text-fg-subtle">
                 {s.usedBy.length ? (
-                  <>Utilisé par : <span className="text-fg-muted">{s.usedBy.map((a) => a.name).join(", ")}</span></>
+                  <>{t("Utilisé par :")} <span className="text-fg-muted">{s.usedBy.map((a) => a.name).join(", ")}</span></>
                 ) : (
-                  "Attribué à aucun agent"
+                  t("Attribué à aucun agent")
                 )}
               </div>
               <div className="mt-auto flex items-center justify-end gap-1.5 pt-3">
                 <Button size="sm" variant="ghost" onClick={() => setDetailId(s.id)}>
-                  <Eye /> Détails
+                  <Eye /> {t("Détails")}
                 </Button>
                 {s.status === "available" ? (
                   <Button size="sm" variant="secondary" onClick={() => setInstallTarget(s)}>
-                    <Download /> Installer dans WAR ROOM
+                    <Download /> {t("Installer dans WAR ROOM")}
                   </Button>
                 ) : null}
                 {s.source === "warroom" ? (
@@ -189,10 +190,10 @@ export default function SkillsPage() {
                     variant="danger-ghost"
                     loading={remove.isPending && remove.variables === s.id}
                     onClick={() => {
-                      if (confirm(`Supprimer le skill « ${s.name} » de WAR ROOM ? Le dossier data/skills correspondant sera effacé.`)) remove.mutate(s.id);
+                      if (confirm(t("Supprimer le skill « {name} » de WAR ROOM ? Le dossier data/skills correspondant sera effacé.", { name: s.name }))) remove.mutate(s.id);
                     }}
                   >
-                    <Trash2 /> Supprimer
+                    <Trash2 /> {t("Supprimer")}
                   </Button>
                 ) : null}
               </div>
@@ -225,12 +226,12 @@ function SkillDetailDialog({ id, onClose }: { id: string | null; onClose: () => 
         <div className="space-y-3">
           <p className="text-xs text-fg-muted">{d.description}</p>
           <div className="flex flex-wrap gap-1.5 text-[11px]">
-            <Badge tone={d.status === "installed" ? "success" : "neutral"}>{d.status === "installed" ? "Installé" : "Disponible"}</Badge>
-            <Badge tone="outline">~{fmtTokens(d.contextTokens, { compact: true })} tokens (estimation)</Badge>
-            {!d.trusted ? <Badge tone="warning">Source non vérifiée</Badge> : null}
+            <Badge tone={d.status === "installed" ? "success" : "neutral"}>{d.status === "installed" ? t("Installé") : t("Disponible")}</Badge>
+            <Badge tone="outline">{t("~{count} tokens (estimation)", { count: fmtTokens(d.contextTokens, { compact: true }) })}</Badge>
+            {!d.trusted ? <Badge tone="warning">{t("Source non vérifiée")}</Badge> : null}
           </div>
           <div className="rounded-lg border border-border bg-bg p-4">
-            {d.content.trim() ? <Markdown text={d.content} /> : <p className="text-xs text-fg-subtle">SKILL.md sans contenu.</p>}
+            {d.content.trim() ? <Markdown text={d.content} /> : <p className="text-xs text-fg-subtle">{t("SKILL.md sans contenu.")}</p>}
           </div>
         </div>
       ) : null}
@@ -244,7 +245,7 @@ function InstallDialog({ skill, onClose }: { skill: Skill | null; onClose: () =>
   const install = useMutation({
     mutationFn: (s: Skill) => api.post("/skills/install", { id: s.id, confirmUntrusted: !s.trusted && confirmed }),
     onSuccess: () => {
-      toast.success("Skill installé dans WAR ROOM");
+      toast.success(t("Skill installé dans WAR ROOM"));
       void qc.invalidateQueries({ queryKey: qk.skills });
       setConfirmed(false);
       onClose();
@@ -259,38 +260,37 @@ function InstallDialog({ skill, onClose }: { skill: Skill | null; onClose: () =>
     <Dialog
       open={!!skill}
       onOpenChange={(v) => !v && close()}
-      title={`Installer « ${skill?.name ?? ""} »`}
-      description="Le dossier du skill sera copié dans data/skills. Rien n'est modifié dans ~/.claude."
+      title={t("Installer « {name} »", { name: skill?.name ?? "" })}
+      description={t("Le dossier du skill sera copié dans data/skills. Rien n'est modifié dans ~/.claude.")}
       footer={
         <>
           <Button variant="ghost" onClick={close}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button variant="primary" disabled={!!skill && !skill.trusted && !confirmed} loading={install.isPending} onClick={() => skill && install.mutate(skill)}>
-            <Download /> Installer
+            <Download /> {t("Installer")}
           </Button>
         </>
       }
     >
       {skill ? (
         <div className="space-y-3 text-xs text-fg-muted">
-          <p>Source : <span className="text-fg">{skill.sourceLabel}</span></p>
+          <p>{t("Source :")} <span className="text-fg">{skill.sourceLabel}</span></p>
           <p>
-            Coût en contexte estimé : <span className="text-fg">~{fmtTokens(skill.contextTokens)} tokens</span> ajoutés au prompt système de chaque agent auquel
-            vous l'attribuerez.
+            {t("Coût en contexte estimé :")} <span className="text-fg">{t("~{count} tokens", { count: fmtTokens(skill.contextTokens) })}</span>{" "}
+            {t("ajoutés au prompt système de chaque agent auquel vous l'attribuerez.")}
           </p>
           {!skill.trusted ? (
             <div className="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-warning">
               <p className="flex items-center gap-1.5 font-medium">
-                <ShieldAlert className="size-4" /> Source non vérifiée
+                <ShieldAlert className="size-4" /> {t("Source non vérifiée")}
               </p>
               <p>
-                Ce skill ne provient pas d'une source reconnue. Son contenu sera injecté dans les prompts de vos agents et pourrait contenir des instructions
-                malveillantes (injection de prompt). Lisez-le dans « Détails » avant de l'installer.
+                {t("Ce skill ne provient pas d'une source reconnue. Son contenu sera injecté dans les prompts de vos agents et pourrait contenir des instructions malveillantes (injection de prompt). Lisez-le dans « Détails » avant de l'installer.")}
               </p>
               <label className="flex cursor-pointer items-center gap-2 text-fg">
                 <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-                J'ai relu ce skill et j'accepte de l'installer.
+                {t("J'ai relu ce skill et j'accepte de l'installer.")}
               </label>
             </div>
           ) : null}
@@ -309,7 +309,7 @@ function CreateSkillDialog({ open, onOpenChange }: { open: boolean; onOpenChange
   const create = useMutation({
     mutationFn: () => api.post("/skills", { name, description, content }),
     onSuccess: () => {
-      toast.success("Skill créé");
+      toast.success(t("Skill créé"));
       void qc.invalidateQueries({ queryKey: qk.skills });
       setName("");
       setDescription("");
@@ -322,29 +322,29 @@ function CreateSkillDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Créer un skill WAR ROOM"
-      description="Enregistré dans data/skills/<nom>/SKILL.md, au format Agent Skills."
+      title={t("Créer un skill WAR ROOM")}
+      description={t("Enregistré dans data/skills/<nom>/SKILL.md, au format Agent Skills.")}
       size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button variant="primary" disabled={!nameValid || description.trim().length < 5} loading={create.isPending} onClick={() => create.mutate()}>
-            Créer
+            {t("Créer")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <Field label="Nom" hint={name && !nameValid ? "Lettres minuscules, chiffres et tirets (2 à 61 caractères)." : "Ex. : revue-securite-api"}>
-          <Input value={name} onChange={(e) => setName(e.target.value.toLowerCase())} placeholder="mon-skill" />
+        <Field label={t("Nom")} hint={name && !nameValid ? t("Lettres minuscules, chiffres et tirets (2 à 61 caractères).") : t("Ex. : revue-securite-api")}>
+          <Input value={name} onChange={(e) => setName(e.target.value.toLowerCase())} placeholder={t("mon-skill")} />
         </Field>
-        <Field label="Description" hint="Quand et pourquoi utiliser ce skill (au moins 5 caractères).">
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Checklist de revue de sécurité pour les API REST" />
+        <Field label={t("Description")} hint={t("Quand et pourquoi utiliser ce skill (au moins 5 caractères).")}>
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("Checklist de revue de sécurité pour les API REST")} />
         </Field>
-        <Field label="Contenu (Markdown)" hint={content ? `~${fmtTokens(Math.ceil(content.length / 4))} tokens (estimation)` : undefined}>
-          <Textarea value={content} onChange={(e) => setContent(e.target.value)} rows={12} className="font-mono text-xs" placeholder={"# Mon skill\n\nInstructions pour l'agent…"} />
+        <Field label={t("Contenu (Markdown)")} hint={content ? t("~{count} tokens (estimation)", { count: fmtTokens(Math.ceil(content.length / 4)) }) : undefined}>
+          <Textarea value={content} onChange={(e) => setContent(e.target.value)} rows={12} className="font-mono text-xs" placeholder={t("# Mon skill\n\nInstructions pour l'agent…")} />
         </Field>
       </div>
     </Dialog>

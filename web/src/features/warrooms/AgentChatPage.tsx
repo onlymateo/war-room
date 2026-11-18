@@ -17,6 +17,7 @@ import { ApprovalCards } from "../chat/ToolCalls";
 import { useResumeParam } from "../chat/useResumeParam";
 import { AgentEditor } from "./AgentEditor";
 import { useRoom } from "./shared";
+import { t } from "@/i18n";
 
 export default function AgentChatPage() {
   const { id = "", agentId = "" } = useParams();
@@ -44,7 +45,7 @@ export default function AgentChatPage() {
   const agent = room.data?.agents.find((a) => a.id === agentId);
   const orch = room.data?.agents.find((a) => a.role === "orchestrator");
   if (room.isLoading || conv.isLoading) return <div className="p-8"><Skeleton className="h-8 w-64" /></div>;
-  if (!agent || !room.data) return <div className="p-8 text-sm text-danger">Agent introuvable.</div>;
+  if (!agent || !room.data) return <div className="p-8 text-sm text-danger">{t("Agent introuvable.")}</div>;
 
   const providerId = agent.providerId ?? orch?.providerId ?? null;
   const modelId = agent.modelId ?? orch?.modelId ?? null;
@@ -60,7 +61,7 @@ export default function AgentChatPage() {
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-5">
-          <Link to={`/warrooms/${id}?tab=agents`} className="rounded p-1 text-fg-muted hover:bg-surface-2 hover:text-fg" aria-label="Retour">
+          <Link to={`/warrooms/${id}?tab=agents`} className="rounded p-1 text-fg-muted hover:bg-surface-2 hover:text-fg" aria-label={t("Retour")}>
             <ArrowLeft className="size-4" />
           </Link>
           <AgentAvatar icon={agent.icon} color={agent.color} size="sm" />
@@ -71,15 +72,15 @@ export default function AgentChatPage() {
             </div>
           </div>
           <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setEditing(true)}>
-            <Pencil /> Configurer
+            <Pencil /> {t("Configurer")}
           </Button>
         </header>
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-5 py-4">
             {stream.messages.length === 0 ? (
               <div className="py-16 text-center text-sm text-fg-subtle">
-                Conversation directe avec {agent.name}, sans passer par l'orchestrateur.
-                {agent.permissions.readWarRoomContext ? " Il a accès au contexte de la War Room." : " Il n'a pas accès au contexte de la War Room."}
+                {t("Conversation directe avec {name}, sans passer par l'orchestrateur.", { name: agent.name })}
+                {agent.permissions.readWarRoomContext ? t(" Il a accès au contexte de la War Room.") : t(" Il n'a pas accès au contexte de la War Room.")}
               </div>
             ) : (
               stream.messages.map((m) => <MessageItem key={m.id} message={m} speaker={{ name: agent.name, icon: agent.icon, color: agent.color }} modelName={modelLabel(models.data ?? [], m.providerId, m.modelId)} />)
@@ -94,7 +95,7 @@ export default function AgentChatPage() {
               onStop={stream.stop}
               scope={{ warRoomId: id, conversationId: conv.data?.conversation.id }}
               improve={{ conversationId: conv.data?.conversation.id, warRoomId: id, agentId }}
-              placeholder={`Message à ${agent.name}…`}
+              placeholder={t("Message à {name}…", { name: agent.name })}
               onSend={(content, attachments) =>
                 stream.run(`/agents/${agentId}/messages`, { content, attachmentIds: attachments.map((a) => a.id) }, () => {
                   void qc.invalidateQueries({ queryKey: ["agent-conv-usage"] });
@@ -106,21 +107,21 @@ export default function AgentChatPage() {
       </div>
       <aside className="hidden w-72 shrink-0 space-y-4 overflow-y-auto border-l border-border bg-surface/40 p-4 lg:block">
         <div>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Rôle</h3>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">{t("Rôle")}</h3>
           <p className="mt-1 text-[13px]">{agent.function || "—"}</p>
           <p className="mt-1 text-xs text-fg-muted">{agent.description}</p>
         </div>
         <Card className="space-y-2 p-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Contexte</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">{t("Contexte")}</div>
           <Progress value={ratio} tone={ratio !== null && ratio > 0.8 ? "danger" : "accent"} />
           <div className="text-xs tabular-nums text-fg-muted">
-            {last ? `${fmtTokens(last.contextTokens)} / ${model?.contextWindow ? fmtTokens(model.contextWindow) : "inconnu"} tokens · ${fmtPct(ratio)}` : "Pas encore d'appel"}
+            {last ? `${fmtTokens(last.contextTokens)} / ${model?.contextWindow ? fmtTokens(model.contextWindow) : t("inconnu")} tokens · ${fmtPct(ratio)}` : t("Pas encore d'appel")}
           </div>
           <div className="border-t border-border pt-2 text-xs text-fg-muted">
-            Cette conversation : {fmtTokens(totals.input, { compact: true })} ↑ · {fmtTokens(totals.output, { compact: true })} ↓
+            {t("Cette conversation : {input} ↑ · {output} ↓", { input: fmtTokens(totals.input, { compact: true }), output: fmtTokens(totals.output, { compact: true }) })}
             {last ? (
               <div className="mt-1">
-                Dernier appel : <CostTag costUsd={last.costUsd} costKind={last.costKind} />
+                {t("Dernier appel :")} <CostTag costUsd={last.costUsd} costKind={last.costKind} />
               </div>
             ) : null}
           </div>
@@ -129,16 +130,16 @@ export default function AgentChatPage() {
           <h3 className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
             <Sparkles className="size-3" /> Skills
           </h3>
-          <div className="flex flex-wrap gap-1">{agent.skills.length ? agent.skills.map((s) => <Badge key={s} tone="outline">{s}</Badge>) : <span className="text-xs text-fg-subtle">Aucun</span>}</div>
+          <div className="flex flex-wrap gap-1">{agent.skills.length ? agent.skills.map((s) => <Badge key={s} tone="outline">{s}</Badge>) : <span className="text-xs text-fg-subtle">{t("Aucun")}</span>}</div>
         </div>
         <div>
           <h3 className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">
             <Shield className="size-3" /> Permissions
           </h3>
           <ul className="space-y-0.5 text-xs text-fg-muted">
-            <li>{agent.permissions.readWarRoomContext ? "✓" : "✗"} Contexte de la War Room</li>
-            <li>{agent.permissions.readFiles ? "✓" : "✗"} Pièces jointes</li>
-            <li>{agent.permissions.useMcp ? "✓" : "✗"} Outils MCP</li>
+            <li>{agent.permissions.readWarRoomContext ? "✓" : "✗"} {t("Contexte de la War Room")}</li>
+            <li>{agent.permissions.readFiles ? "✓" : "✗"} {t("Pièces jointes")}</li>
+            <li>{agent.permissions.useMcp ? "✓" : "✗"} {t("Outils MCP")}</li>
           </ul>
         </div>
       </aside>

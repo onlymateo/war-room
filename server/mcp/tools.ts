@@ -6,6 +6,7 @@ import { callTool, McpPermissionError, statusOf } from "./manager";
 import { requestApproval } from "./approvals";
 import type { RunEvent, ToolCallRecord } from "../../shared/types";
 import { findSecretRefs, markSecretsUsed, redactSecrets, substituteSecrets, type RunSecret } from "../secrets/service";
+import { serverLang, tx } from "../lib/i18n";
 
 /**
  * Agent-facing tool gateway. Every MCP tool call made by an agent, whatever the
@@ -171,8 +172,14 @@ export async function executeAgentTool(ctx: ToolRunContext, name: string, args: 
     );
     if (record.approvalId) ctx.emit({ type: "tool_approval_resolved", approvalId: record.approvalId, approved });
     if (!approved) {
-      update({ status: "denied", resultPreview: "Refusé par l'utilisateur (ou délai dépassé).", durationMs: now() - record.startedAt });
-      await logActivity({ type: "tool_denied", summary: `${ctx.agentName}: ${tool.serverName} › ${tool.tool} refusé`, warRoomId: ctx.warRoomId, agentId: ctx.agentId });
+      const lang = await serverLang();
+      update({ status: "denied", resultPreview: tx(lang, "Refusé par l'utilisateur (ou délai dépassé).", "Denied by the user (or timed out)."), durationMs: now() - record.startedAt });
+      await logActivity({
+        type: "tool_denied",
+        summary: tx(lang, `${ctx.agentName}: ${tool.serverName} › ${tool.tool} refusé`, `${ctx.agentName}: ${tool.serverName} › ${tool.tool} denied`),
+        warRoomId: ctx.warRoomId,
+        agentId: ctx.agentId,
+      });
       return { text: "The user denied this tool call. Do not retry it; continue without it or ask the user.", isError: true };
     }
     update({ status: "running" });
@@ -186,9 +193,12 @@ export async function executeAgentTool(ctx: ToolRunContext, name: string, args: 
     const out = { text: scrub(raw.text), isError: raw.isError };
     update({ status: out.isError ? "error" : "done", resultPreview: out.text.slice(0, 2000), durationMs: now() - record.startedAt });
     if (used.length && ctx.warRoomId) await markSecretsUsed(ctx.warRoomId, used.map((s) => s.name));
+    const lang = await serverLang();
+    const keyNames = used.map((s) => s.name).join(", ");
+    const keys = used.length ? tx(lang, ` (clé${used.length > 1 ? "s" : ""} : ${keyNames})`, ` (key${used.length > 1 ? "s" : ""}: ${keyNames})`) : "";
     await logActivity({
       type: out.isError ? "tool_error" : "tool_call",
-      summary: `${ctx.agentName}: ${tool.serverName} › ${tool.tool}${used.length ? ` (clé${used.length > 1 ? "s" : ""} : ${used.map((s) => s.name).join(", ")})` : ""}`,
+      summary: `${ctx.agentName}: ${tool.serverName} › ${tool.tool}${keys}`,
       warRoomId: ctx.warRoomId,
       agentId: ctx.agentId,
     });

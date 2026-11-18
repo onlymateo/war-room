@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { qk, useAgents, useWarRooms } from "@/lib/queries";
 import type { Activity, Agent, Memory, Project, Task, TaskStatus, WarRoom } from "@/lib/types";
 import { cn, fmtDateTime, fmtRelative, fmtUsd } from "@/lib/utils";
+import { locale, t } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import {
@@ -77,7 +78,7 @@ export default function ProjectPage() {
   const deleteTask = useMutation({
     mutationFn: (taskId: string) => api.del(`/tasks/${taskId}`),
     onSuccess: () => {
-      toast.success("Tâche supprimée");
+      toast.success(t("Tâche supprimée"));
       invalidate();
     },
     onError: (err) => toast.error((err as Error).message),
@@ -85,7 +86,7 @@ export default function ProjectPage() {
   const deleteProject = useMutation({
     mutationFn: () => api.del(`/projects/${id}`),
     onSuccess: () => {
-      toast.success("Projet supprimé");
+      toast.success(t("Projet supprimé"));
       void qc.invalidateQueries({ queryKey: qk.projects });
       void qc.invalidateQueries({ queryKey: qk.warrooms });
       navigate("/projects");
@@ -112,7 +113,7 @@ export default function ProjectPage() {
   if (detail.isError || !detail.data) {
     return (
       <Page>
-        <EmptyState title="Projet introuvable" description={(detail.error as Error | null)?.message} action={<Link to="/projects"><Button>Retour aux projets</Button></Link>} />
+        <EmptyState title={t("Projet introuvable")} description={(detail.error as Error | null)?.message} action={<Link to="/projects"><Button>{t("Retour aux projets")}</Button></Link>} />
       </Page>
     );
   }
@@ -139,29 +140,29 @@ export default function ProjectPage() {
         title={
           <span className="flex items-center gap-2">
             {project.name}
-            <Badge tone={PROJECT_STATUS_TONE[project.status]}>{PROJECT_STATUS_LABEL[project.status]}</Badge>
+            <Badge tone={PROJECT_STATUS_TONE[project.status]}>{t(PROJECT_STATUS_LABEL[project.status])}</Badge>
           </span>
         }
-        description={project.description || "Pas de description."}
+        description={project.description || t("Pas de description.")}
         actions={
           <>
             <Button variant="primary" onClick={() => setTaskOpen(true)}>
-              <Plus /> Tâche
+              <Plus /> {t("Tâche")}
             </Button>
             <Button onClick={() => setEditOpen(true)}>
-              <Pencil /> Modifier
+              <Pencil /> {t("Modifier")}
             </Button>
             <Menu
               trigger={
-                <Button variant="ghost" size="icon" aria-label="Plus d'actions">
+                <Button variant="ghost" size="icon" aria-label={t("Plus d'actions")}>
                   <MoreHorizontal />
                 </Button>
               }
               items={[
-                { label: "Rattacher une War Room", icon: <Link2 />, onSelect: () => setLinkOpen(true) },
-                { label: "Nouvelle War Room", icon: <Swords />, onSelect: () => navigate("/warrooms/new") },
+                { label: t("Rattacher une War Room"), icon: <Link2 />, onSelect: () => setLinkOpen(true) },
+                { label: t("Nouvelle War Room"), icon: <Swords />, onSelect: () => navigate("/warrooms/new") },
                 "separator",
-                { label: "Supprimer le projet", icon: <Trash2 />, danger: true, onSelect: () => setDeleteOpen(true) },
+                { label: t("Supprimer le projet"), icon: <Trash2 />, danger: true, onSelect: () => setDeleteOpen(true) },
               ]}
             />
           </>
@@ -169,14 +170,14 @@ export default function ProjectPage() {
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Stat label="Tâches" value={taskList.length} hint={`${done} terminée${done > 1 ? "s" : ""}`} />
-        <Stat label="En cours" value={inProgress} />
-        <Stat label="Bloquées" value={blocked} />
+        <Stat label={t("Tâches")} value={taskList.length} hint={done > 1 ? t("{count} terminées", { count: done }) : t("{count} terminée", { count: done })} />
+        <Stat label={t("En cours")} value={inProgress} />
+        <Stat label={t("Bloquées")} value={blocked} />
         <Stat label="War Rooms" value={rooms.length} />
         <Stat
-          label="Coût API facturé"
+          label={t("Coût API facturé")}
           value={fmtUsd(spentUsd)}
-          hint={project.budgetUsd != null ? `Budget ${fmtUsd(project.budgetUsd)}` : "Pas de budget défini"}
+          hint={project.budgetUsd != null ? t("Budget {amount}", { amount: fmtUsd(project.budgetUsd) }) : t("Pas de budget défini")}
         />
       </div>
 
@@ -185,9 +186,9 @@ export default function ProjectPage() {
         onValueChange={(v) => setView(v as View)}
         className="mb-5"
         items={[
-          { value: "summary", label: "Synthèse", icon: <ListTree /> },
+          { value: "summary", label: t("Synthèse##project"), icon: <ListTree /> },
           { value: "kanban", label: "Kanban", icon: <Columns3 />, count: taskList.length },
-          { value: "list", label: "Liste", icon: <LayoutList /> },
+          { value: "list", label: t("Liste"), icon: <LayoutList /> },
           { value: "timeline", label: "Timeline", icon: <Calendar /> },
         ]}
       />
@@ -211,11 +212,11 @@ export default function ProjectPage() {
       ) : !taskList.length ? (
         <EmptyState
           icon={<CheckCircle2 />}
-          title="Aucune tâche"
-          description="Créez des tâches ici, ou laissez l'orchestrateur d'une War Room rattachée les générer à partir du brief."
+          title={t("Aucune tâche")}
+          description={t("Créez des tâches ici, ou laissez l'orchestrateur d'une War Room rattachée les générer à partir du brief.")}
           action={
             <Button variant="primary" onClick={() => setTaskOpen(true)}>
-              <Plus /> Nouvelle tâche
+              <Plus /> {t("Nouvelle tâche")}
             </Button>
           }
         />
@@ -234,21 +235,21 @@ export default function ProjectPage() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         size="sm"
-        title="Supprimer le projet ?"
-        description="Les War Rooms et tâches sont conservées mais détachées du projet. L'historique d'usage est conservé."
+        title={t("Supprimer le projet ?")}
+        description={t("Les War Rooms et tâches sont conservées mais détachées du projet. L'historique d'usage est conservé.")}
         footer={
           <>
             <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
-              Annuler
+              {t("Annuler")}
             </Button>
             <Button variant="danger" loading={deleteProject.isPending} onClick={() => deleteProject.mutate()}>
-              Supprimer
+              {t("Supprimer")}
             </Button>
           </>
         }
       >
         <p className="text-[13px] text-fg-muted">
-          Le projet <span className="font-medium text-fg">{project.name}</span> sera supprimé définitivement.
+          {t("Le projet")} <span className="font-medium text-fg">{project.name}</span> {t("sera supprimé définitivement.")}
         </p>
       </Dialog>
     </Page>
@@ -299,22 +300,22 @@ function SummaryView({
     <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
       <div className="space-y-5">
         <Card>
-          <CardHeader title="Objectifs" />
+          <CardHeader title={t("Objectifs")} />
           <div className="px-4 py-3">
             {project.objectives.trim() ? (
               <div className="whitespace-pre-wrap text-[13px] leading-relaxed">{project.objectives}</div>
             ) : (
-              <p className="text-xs text-fg-subtle">Aucun objectif défini. Utilisez « Modifier » pour en ajouter.</p>
+              <p className="text-xs text-fg-subtle">{t("Aucun objectif défini. Utilisez « Modifier » pour en ajouter.")}</p>
             )}
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Indicateurs" />
+          <CardHeader title={t("Indicateurs")} />
           <div className="space-y-4 px-4 py-4">
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs text-fg-muted">
-                <span>Tâches terminées</span>
+                <span>{t("Tâches terminées")}</span>
                 <span className="tabular-nums">
                   {taskDone}/{taskTotal}
                 </span>
@@ -323,24 +324,24 @@ function SummaryView({
             </div>
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs text-fg-muted">
-                <span>Budget API</span>
+                <span>{t("Budget API")}</span>
                 <span className="tabular-nums">
                   {fmtUsd(spentUsd)}
-                  {project.budgetUsd != null ? ` / ${fmtUsd(project.budgetUsd)}` : " (aucune limite)"}
+                  {project.budgetUsd != null ? ` / ${fmtUsd(project.budgetUsd)}` : ` ${t("(aucune limite)")}`}
                 </span>
               </div>
               {budgetRatio !== null ? <Progress value={budgetRatio} tone={budgetRatio >= 1 ? "danger" : budgetRatio >= 0.8 ? "warning" : "accent"} /> : null}
-              <p className="text-[11px] text-fg-subtle">Seuls les coûts réellement facturés par API sont comptés (pas les abonnements).</p>
+              <p className="text-[11px] text-fg-subtle">{t("Seuls les coûts réellement facturés par API sont comptés (pas les abonnements).")}</p>
             </div>
           </div>
         </Card>
 
         <Section
           title="War Rooms"
-          description="Environnements de travail rattachés à ce projet."
+          description={t("Environnements de travail rattachés à ce projet.")}
           actions={
             <Button size="sm" onClick={onLink}>
-              <Link2 /> Rattacher
+              <Link2 /> {t("Rattacher")}
             </Button>
           }
         >
@@ -353,18 +354,18 @@ function SummaryView({
                     <div className="truncate text-[13px] font-medium hover:underline">{r.name}</div>
                     <div className="truncate text-[11px] text-fg-subtle">{r.objective || r.description || "—"}</div>
                   </Link>
-                  <Button variant="ghost" size="icon-sm" title="Détacher du projet" aria-label="Détacher" onClick={() => onUnlink(r.id)}>
+                  <Button variant="ghost" size="icon-sm" title={t("Détacher du projet")} aria-label={t("Détacher")} onClick={() => onUnlink(r.id)}>
                     <Unlink />
                   </Button>
                 </Card>
               ))}
             </div>
           ) : (
-            <EmptyState title="Aucune War Room rattachée" description="Rattachez une War Room existante ou créez-en une nouvelle." />
+            <EmptyState title={t("Aucune War Room rattachée")} description={t("Rattachez une War Room existante ou créez-en une nouvelle.")} />
           )}
         </Section>
 
-        <Section title="Décisions" description="Décisions importantes du projet (mémoire de projet).">
+        <Section title={t("Décisions")} description={t("Décisions importantes du projet (mémoire de projet).")}>
           <Card>
             <div className="divide-y divide-border">
               {decisions.length ? (
@@ -381,7 +382,7 @@ function SummaryView({
                       variant="ghost"
                       size="icon-sm"
                       className="opacity-0 group-hover:opacity-100"
-                      aria-label="Supprimer la décision"
+                      aria-label={t("Supprimer la décision")}
                       onClick={() => removeDecision.mutate(d.id)}
                     >
                       <Trash2 />
@@ -389,20 +390,20 @@ function SummaryView({
                   </div>
                 ))
               ) : (
-                <p className="px-4 py-3 text-xs text-fg-subtle">Aucune décision enregistrée.</p>
+                <p className="px-4 py-3 text-xs text-fg-subtle">{t("Aucune décision enregistrée.")}</p>
               )}
             </div>
             <div className="flex gap-2 border-t border-border p-3">
               <Input
                 value={decision}
                 onChange={(e) => setDecision(e.target.value)}
-                placeholder="Nouvelle décision…"
+                placeholder={t("Nouvelle décision…")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && decision.trim()) addDecision.mutate();
                 }}
               />
               <Button onClick={() => addDecision.mutate()} disabled={!decision.trim()} loading={addDecision.isPending}>
-                Ajouter
+                {t("Ajouter")}
               </Button>
             </div>
           </Card>
@@ -410,7 +411,7 @@ function SummaryView({
       </div>
 
       <Card className="h-fit">
-        <CardHeader title="Activité récente" />
+        <CardHeader title={t("Activité récente")} />
         {activity.length ? (
           <ol className="max-h-[640px] divide-y divide-border overflow-y-auto">
             {activity.map((a) => {
@@ -427,7 +428,7 @@ function SummaryView({
             })}
           </ol>
         ) : (
-          <p className="px-4 py-3 text-xs text-fg-subtle">Aucune activité pour l'instant.</p>
+          <p className="px-4 py-3 text-xs text-fg-subtle">{t("Aucune activité pour l'instant.")}</p>
         )}
       </Card>
     </div>
@@ -443,7 +444,7 @@ interface TaskViewProps {
 }
 
 function Assignee({ agent }: { agent: Agent | undefined | null }) {
-  if (!agent) return <span className="text-[11px] text-fg-subtle">Non assignée</span>;
+  if (!agent) return <span className="text-[11px] text-fg-subtle">{t("Non assignée")}</span>;
   return (
     <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-fg-muted">
       <AgentAvatar icon={agent.icon} color={agent.color} size="sm" className="!size-5" />
@@ -456,14 +457,14 @@ function TaskMenu({ task, onStatus, onDelete }: { task: Task; onStatus: (t: Task
   return (
     <Menu
       trigger={
-        <button className="rounded p-0.5 text-fg-subtle hover:bg-surface-3 hover:text-fg" aria-label="Actions de la tâche">
+        <button className="rounded p-0.5 text-fg-subtle hover:bg-surface-3 hover:text-fg" aria-label={t("Actions de la tâche")}>
           <MoreHorizontal className="size-3.5" />
         </button>
       }
       items={[
-        ...TASK_STATUSES.filter((s) => s !== task.status).map((s) => ({ label: `→ ${TASK_STATUS_LABEL[s]}`, onSelect: () => onStatus(task, s) })),
+        ...TASK_STATUSES.filter((s) => s !== task.status).map((s) => ({ label: `→ ${t(TASK_STATUS_LABEL[s])}`, onSelect: () => onStatus(task, s) })),
         "separator" as const,
-        { label: "Supprimer", icon: <Trash2 />, danger: true, onSelect: () => onDelete(task) },
+        { label: t("Supprimer"), icon: <Trash2 />, danger: true, onSelect: () => onDelete(task) },
       ]}
     />
   );
@@ -477,38 +478,38 @@ function KanbanView({ tasks, agentById, roomName, onStatus, onDelete }: TaskView
         return (
           <div key={status} className="flex min-h-40 flex-col rounded-lg border border-border bg-surface/60">
             <div className="flex items-center justify-between border-b border-border px-3 py-2">
-              <Badge tone={TASK_STATUS_TONE[status]}>{TASK_STATUS_LABEL[status]}</Badge>
+              <Badge tone={TASK_STATUS_TONE[status]}>{t(TASK_STATUS_LABEL[status])}</Badge>
               <span className="text-[11px] tabular-nums text-fg-subtle">{col.length}</span>
             </div>
             <div className="flex-1 space-y-2 p-2">
-              {col.map((t) => {
-                const idx = TASK_STATUSES.indexOf(t.status);
+              {col.map((task) => {
+                const idx = TASK_STATUSES.indexOf(task.status);
                 return (
-                  <Card key={t.id} className="space-y-2 bg-surface-2 p-2.5">
+                  <Card key={task.id} className="space-y-2 bg-surface-2 p-2.5">
                     <div className="flex items-start gap-2">
-                      <div className="min-w-0 flex-1 text-[13px] font-medium leading-snug">{t.title}</div>
-                      <TaskMenu task={t} onStatus={onStatus} onDelete={onDelete} />
+                      <div className="min-w-0 flex-1 text-[13px] font-medium leading-snug">{task.title}</div>
+                      <TaskMenu task={task} onStatus={onStatus} onDelete={onDelete} />
                     </div>
-                    {t.description && t.description !== t.title ? <p className="line-clamp-3 text-xs text-fg-muted">{t.description}</p> : null}
+                    {task.description && task.description !== task.title ? <p className="line-clamp-3 text-xs text-fg-muted">{task.description}</p> : null}
                     <div className="flex items-center justify-between gap-2">
-                      <Assignee agent={t.assigneeAgentId ? agentById.get(t.assigneeAgentId) : null} />
-                      <Badge tone="outline">{PRIORITY_LABEL[t.priority] ?? `P${t.priority}`}</Badge>
+                      <Assignee agent={task.assigneeAgentId ? agentById.get(task.assigneeAgentId) : null} />
+                      <Badge tone="outline">{PRIORITY_LABEL[task.priority] ? t(PRIORITY_LABEL[task.priority]) : `P${task.priority}`}</Badge>
                     </div>
-                    {roomName(t.warRoomId) ? <div className="truncate text-[11px] text-fg-subtle">{roomName(t.warRoomId)}</div> : null}
+                    {roomName(task.warRoomId) ? <div className="truncate text-[11px] text-fg-subtle">{roomName(task.warRoomId)}</div> : null}
                     <div className="flex justify-between">
                       <button
                         disabled={idx <= 0}
-                        onClick={() => onStatus(t, TASK_STATUSES[idx - 1])}
+                        onClick={() => onStatus(task, TASK_STATUSES[idx - 1])}
                         className="rounded px-1 text-[11px] text-fg-subtle hover:text-fg disabled:opacity-0"
                       >
-                        ← {idx > 0 ? TASK_STATUS_LABEL[TASK_STATUSES[idx - 1]] : ""}
+                        ← {idx > 0 ? t(TASK_STATUS_LABEL[TASK_STATUSES[idx - 1]]) : ""}
                       </button>
                       <button
                         disabled={idx >= TASK_STATUSES.length - 1}
-                        onClick={() => onStatus(t, TASK_STATUSES[idx + 1])}
+                        onClick={() => onStatus(task, TASK_STATUSES[idx + 1])}
                         className="rounded px-1 text-[11px] text-fg-subtle hover:text-fg disabled:opacity-0"
                       >
-                        {idx < TASK_STATUSES.length - 1 ? TASK_STATUS_LABEL[TASK_STATUSES[idx + 1]] : ""} →
+                        {idx < TASK_STATUSES.length - 1 ? t(TASK_STATUS_LABEL[TASK_STATUSES[idx + 1]]) : ""} →
                       </button>
                     </div>
                   </Card>
@@ -565,39 +566,39 @@ function ListView({ tasks, agentById, roomName, onStatus, onDelete }: TaskViewPr
       <table className="w-full text-[13px]">
         <thead className="border-b border-border text-xs text-fg-muted">
           <tr>
-            <Th k="title">Tâche</Th>
-            <Th k="status">Statut</Th>
-            <Th k="priority">Priorité</Th>
-            <Th k="assignee">Assigné à</Th>
+            <Th k="title">{t("Tâche")}</Th>
+            <Th k="status">{t("Statut")}</Th>
+            <Th k="priority">{t("Priorité")}</Th>
+            <Th k="assignee">{t("Assigné à")}</Th>
             <th className="px-3 py-2 text-left font-medium">War Room</th>
-            <Th k="updatedAt">Mise à jour</Th>
+            <Th k="updatedAt">{t("Mise à jour")}</Th>
             <th className="w-8" />
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {sorted.map((t) => (
-            <tr key={t.id} className="hover:bg-surface-2/50">
+          {sorted.map((task) => (
+            <tr key={task.id} className="hover:bg-surface-2/50">
               <td className="max-w-md px-3 py-2">
-                <div className="truncate font-medium">{t.title}</div>
-                {t.dependsOn.length ? <div className="text-[11px] text-fg-subtle">Dépend de {t.dependsOn.length} tâche(s)</div> : null}
+                <div className="truncate font-medium">{task.title}</div>
+                {task.dependsOn.length ? <div className="text-[11px] text-fg-subtle">{t("Dépend de {count} tâche(s)", { count: task.dependsOn.length })}</div> : null}
               </td>
               <td className="px-3 py-2">
-                <Select value={t.status} onChange={(e) => onStatus(t, e.target.value as TaskStatus)} className="h-7 w-32 text-xs">
+                <Select value={task.status} onChange={(e) => onStatus(task, e.target.value as TaskStatus)} className="h-7 w-32 text-xs">
                   {TASK_STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {TASK_STATUS_LABEL[s]}
+                      {t(TASK_STATUS_LABEL[s])}
                     </option>
                   ))}
                 </Select>
               </td>
-              <td className="px-3 py-2 text-xs text-fg-muted">{PRIORITY_LABEL[t.priority] ?? t.priority}</td>
+              <td className="px-3 py-2 text-xs text-fg-muted">{PRIORITY_LABEL[task.priority] ? t(PRIORITY_LABEL[task.priority]) : task.priority}</td>
               <td className="px-3 py-2">
-                <Assignee agent={t.assigneeAgentId ? agentById.get(t.assigneeAgentId) : null} />
+                <Assignee agent={task.assigneeAgentId ? agentById.get(task.assigneeAgentId) : null} />
               </td>
-              <td className="px-3 py-2 text-xs text-fg-muted">{roomName(t.warRoomId) ?? "—"}</td>
-              <td className="px-3 py-2 text-xs text-fg-subtle">{fmtRelative(t.updatedAt)}</td>
+              <td className="px-3 py-2 text-xs text-fg-muted">{roomName(task.warRoomId) ?? "—"}</td>
+              <td className="px-3 py-2 text-xs text-fg-subtle">{fmtRelative(task.updatedAt)}</td>
               <td className="px-2 py-2">
-                <TaskMenu task={t} onStatus={onStatus} onDelete={onDelete} />
+                <TaskMenu task={task} onStatus={onStatus} onDelete={onDelete} />
               </td>
             </tr>
           ))}
@@ -610,13 +611,13 @@ function ListView({ tasks, agentById, roomName, onStatus, onDelete }: TaskViewPr
 function TimelineView({ tasks, agentById, roomName }: TaskViewProps) {
   const items = [...tasks].sort((a, b) => (a.dueAt ?? a.createdAt) - (b.dueAt ?? b.createdAt));
   const groups = new Map<string, Task[]>();
-  for (const t of items) {
-    const key = new Date(t.dueAt ?? t.createdAt).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
-    groups.set(key, [...(groups.get(key) ?? []), t]);
+  for (const task of items) {
+    const key = new Date(task.dueAt ?? task.createdAt).toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "long", year: "numeric" });
+    groups.set(key, [...(groups.get(key) ?? []), task]);
   }
   return (
     <div className="space-y-6">
-      <p className="text-xs text-fg-subtle">Tâches ordonnées par échéance (ou date de création si aucune échéance n'est définie).</p>
+      <p className="text-xs text-fg-subtle">{t("Tâches ordonnées par échéance (ou date de création si aucune échéance n'est définie).")}</p>
       {[...groups.entries()].map(([day, list]) => (
         <div key={day} className="relative pl-6">
           <div className="absolute bottom-0 left-[7px] top-6 w-px bg-border" />
@@ -625,13 +626,13 @@ function TimelineView({ tasks, agentById, roomName }: TaskViewProps) {
             <h3 className="text-xs font-semibold capitalize text-fg-muted">{day}</h3>
           </div>
           <div className="space-y-2">
-            {list.map((t) => (
-              <Card key={t.id} className="flex flex-wrap items-center gap-3 px-3 py-2">
-                <Badge tone={TASK_STATUS_TONE[t.status]}>{TASK_STATUS_LABEL[t.status]}</Badge>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{t.title}</span>
-                {t.dueAt ? <Badge tone="outline">échéance</Badge> : <span className="text-[11px] text-fg-subtle">créée</span>}
-                <Assignee agent={t.assigneeAgentId ? agentById.get(t.assigneeAgentId) : null} />
-                {roomName(t.warRoomId) ? <span className="text-[11px] text-fg-subtle">{roomName(t.warRoomId)}</span> : null}
+            {list.map((task) => (
+              <Card key={task.id} className="flex flex-wrap items-center gap-3 px-3 py-2">
+                <Badge tone={TASK_STATUS_TONE[task.status]}>{t(TASK_STATUS_LABEL[task.status])}</Badge>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{task.title}</span>
+                {task.dueAt ? <Badge tone="outline">{t("échéance")}</Badge> : <span className="text-[11px] text-fg-subtle">{t("créée")}</span>}
+                <Assignee agent={task.assigneeAgentId ? agentById.get(task.assigneeAgentId) : null} />
+                {roomName(task.warRoomId) ? <span className="text-[11px] text-fg-subtle">{roomName(task.warRoomId)}</span> : null}
               </Card>
             ))}
           </div>
@@ -673,7 +674,7 @@ function EditProjectDialog({ open, onOpenChange, project, onSaved }: { open: boo
         budgetUsd: form.budget.trim() ? Number(form.budget) : null,
       }),
     onSuccess: () => {
-      toast.success("Projet mis à jour");
+      toast.success(t("Projet mis à jour"));
       onSaved();
       onOpenChange(false);
     },
@@ -683,39 +684,39 @@ function EditProjectDialog({ open, onOpenChange, project, onSaved }: { open: boo
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Modifier le projet"
+      title={t("Modifier le projet")}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button variant="primary" loading={save.isPending} disabled={!form.name.trim() || budgetInvalid} onClick={() => save.mutate()}>
-            Enregistrer
+            {t("Enregistrer")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <Field label="Nom">
+        <Field label={t("Nom")}>
           <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={120} />
         </Field>
-        <Field label="Description">
+        <Field label={t("Description")}>
           <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
         </Field>
-        <Field label="Objectifs">
+        <Field label={t("Objectifs")}>
           <Textarea value={form.objectives} onChange={(e) => setForm({ ...form, objectives: e.target.value })} rows={4} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Statut">
+          <Field label={t("Statut")}>
             <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Project["status"] })}>
               {(Object.keys(PROJECT_STATUS_LABEL) as Project["status"][]).map((s) => (
                 <option key={s} value={s}>
-                  {PROJECT_STATUS_LABEL[s]}
+                  {t(PROJECT_STATUS_LABEL[s])}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Budget API (USD)" hint="Vide = pas de limite">
+          <Field label={t("Budget API (USD)")} hint={t("Vide = pas de limite")}>
             <Input value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} inputMode="decimal" />
           </Field>
         </div>
@@ -757,7 +758,7 @@ function CreateTaskDialog({
         dueAt: due ? new Date(due).getTime() : null,
       }),
     onSuccess: () => {
-      toast.success("Tâche créée");
+      toast.success(t("Tâche créée"));
       onCreated();
       onOpenChange(false);
       setTitle("");
@@ -772,40 +773,40 @@ function CreateTaskDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Nouvelle tâche"
+      title={t("Nouvelle tâche")}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button variant="primary" loading={create.isPending} disabled={!title.trim()} onClick={() => create.mutate()}>
-            Créer
+            {t("Créer")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <Field label="Titre">
+        <Field label={t("Titre")}>
           <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={300} />
         </Field>
-        <Field label="Description">
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="À quoi ressemble « terminé » ?" />
+        <Field label={t("Description")}>
+          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder={t("À quoi ressemble « terminé » ?")} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Statut">
+          <Field label={t("Statut")}>
             <Select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
               {TASK_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {TASK_STATUS_LABEL[s]}
+                  {t(TASK_STATUS_LABEL[s])}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Priorité">
+          <Field label={t("Priorité")}>
             <Select value={priority} onChange={(e) => setPriority(Number(e.target.value))}>
-              <option value={1}>Haute</option>
-              <option value={2}>Moyenne</option>
-              <option value={3}>Basse</option>
+              <option value={1}>{t("Haute")}</option>
+              <option value={2}>{t("Moyenne")}</option>
+              <option value={3}>{t("Basse")}</option>
             </Select>
           </Field>
           <Field label="War Room">
@@ -816,7 +817,7 @@ function CreateTaskDialog({
                 setAssignee("");
               }}
             >
-              <option value="">Aucune</option>
+              <option value="">{t("Aucune")}</option>
               {rooms.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
@@ -824,23 +825,23 @@ function CreateTaskDialog({
               ))}
             </Select>
           </Field>
-          <Field label="Assigner à" hint={!agents.length ? "Aucun agent : rattachez une War Room." : undefined}>
+          <Field label={t("Assigner à")} hint={!agents.length ? t("Aucun agent : rattachez une War Room.") : undefined}>
             <Select value={assignee} onChange={(e) => setAssignee(e.target.value)} disabled={!roomAgents.length}>
-              <option value="">Personne</option>
+              <option value="">{t("Personne")}</option>
               {roomAgents.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
-                  {a.role === "orchestrator" ? " (orchestrateur)" : ""}
+                  {a.role === "orchestrator" ? ` ${t("(orchestrateur)")}` : ""}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Échéance">
+          <Field label={t("Échéance")}>
             <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           </Field>
         </div>
         <p className="text-[11px] text-fg-subtle">
-          Assigner une tâche à un agent l'enregistre dans le suivi ; l'exécution se fait en demandant le travail à l'agent depuis sa War Room.
+          {t("Assigner une tâche à un agent l'enregistre dans le suivi ; l'exécution se fait en demandant le travail à l'agent depuis sa War Room.")}
         </p>
       </div>
     </Dialog>
@@ -855,7 +856,7 @@ function LinkRoomDialog({ open, onOpenChange, projectId, onLinked }: { open: boo
   const link = useMutation({
     mutationFn: () => api.patch(`/warrooms/${selected}`, { projectId }),
     onSuccess: () => {
-      toast.success("War Room rattachée");
+      toast.success(t("War Room rattachée"));
       void qc.invalidateQueries({ queryKey: qk.warrooms });
       onLinked();
       onOpenChange(false);
@@ -868,15 +869,15 @@ function LinkRoomDialog({ open, onOpenChange, projectId, onLinked }: { open: boo
       open={open}
       onOpenChange={onOpenChange}
       size="sm"
-      title="Rattacher une War Room"
-      description="Les nouvelles dépenses et tâches de la War Room seront comptées dans ce projet."
+      title={t("Rattacher une War Room")}
+      description={t("Les nouvelles dépenses et tâches de la War Room seront comptées dans ce projet.")}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button variant="primary" disabled={!selected} loading={link.isPending} onClick={() => link.mutate()}>
-            Rattacher
+            {t("Rattacher")}
           </Button>
         </>
       }
@@ -886,20 +887,20 @@ function LinkRoomDialog({ open, onOpenChange, projectId, onLinked }: { open: boo
       ) : candidates.length ? (
         <Field label="War Room">
           <Select value={selected} onChange={(e) => setSelected(e.target.value)}>
-            <option value="">Choisir…</option>
+            <option value="">{t("Choisir…")}</option>
             {candidates.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name}
-                {r.projectId ? " (déjà dans un autre projet)" : ""}
+                {r.projectId ? ` ${t("(déjà dans un autre projet)")}` : ""}
               </option>
             ))}
           </Select>
         </Field>
       ) : (
         <p className="text-[13px] text-fg-muted">
-          Aucune War Room disponible.{" "}
+          {t("Aucune War Room disponible.")}{" "}
           <Link to="/warrooms/new" className="text-accent underline">
-            Créer une War Room
+            {t("Créer une War Room")}
           </Link>
         </p>
       )}

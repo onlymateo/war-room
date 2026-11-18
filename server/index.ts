@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import { serve } from "@hono/node-server";
 import { env, paths } from "./env";
 import { initDatabase } from "./db/client";
+import { serverLang } from "./lib/i18n";
 import { log } from "./lib/logger";
 import { seedCatalog } from "./providers/registry";
 import { providerRoutes } from "./providers/routes";
@@ -92,6 +93,7 @@ if (fs.existsSync(paths.webDist)) {
 async function main() {
   await initDatabase();
   await seedCatalog();
+  await serverLang();
   void connectEnabledServers();
   // Paused work becomes "ready" once its quota window has reset (checked every minute).
   // Daily War Room progress reports (after the configured hour, catching up if the app was off).

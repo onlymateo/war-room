@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { qk } from "@/lib/queries";
 import type { Project } from "@/lib/types";
 import { fmtRelative, fmtUsd } from "@/lib/utils";
+import { t } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/form";
 import { Badge, Card, Dialog, EmptyState, Page, PageHeader, Progress, Skeleton } from "@/components/ui/primitives";
@@ -43,10 +44,10 @@ export default function ProjectsPage() {
       <PageHeader
         icon={<FolderKanban />}
         title="Projects"
-        description="Un projet regroupe plusieurs War Rooms, leurs tâches, décisions et dépenses."
+        description={t("Un projet regroupe plusieurs War Rooms, leurs tâches, décisions et dépenses.")}
         actions={
           <Button variant="primary" onClick={() => setOpen(true)}>
-            <Plus /> Nouveau projet
+            <Plus /> {t("Nouveau projet")}
           </Button>
         }
       />
@@ -58,15 +59,15 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : projects.isError ? (
-        <EmptyState title="Impossible de charger les projets" description={(projects.error as Error).message} />
+        <EmptyState title={t("Impossible de charger les projets")} description={(projects.error as Error).message} />
       ) : !projects.data?.length ? (
         <EmptyState
           icon={<FolderKanban />}
-          title="Aucun projet"
-          description="Créez un projet pour regrouper vos War Rooms, suivre les tâches et contrôler le budget."
+          title={t("Aucun projet")}
+          description={t("Créez un projet pour regrouper vos War Rooms, suivre les tâches et contrôler le budget.")}
           action={
             <Button variant="primary" onClick={() => setOpen(true)}>
-              <Plus /> Créer un projet
+              <Plus /> {t("Créer un projet")}
             </Button>
           }
         />
@@ -81,24 +82,26 @@ export default function ProjectsPage() {
                 <Card className="flex h-full flex-col p-4 transition-colors group-hover:border-border-strong">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="truncate text-[14px] font-semibold">{p.name}</h3>
-                    <Badge tone={PROJECT_STATUS_TONE[p.status]}>{PROJECT_STATUS_LABEL[p.status]}</Badge>
+                    <Badge tone={PROJECT_STATUS_TONE[p.status]}>{t(PROJECT_STATUS_LABEL[p.status])}</Badge>
                   </div>
-                  <p className="mt-1 line-clamp-2 min-h-[2.5em] text-xs text-fg-muted">{p.description || "Pas de description."}</p>
+                  <p className="mt-1 line-clamp-2 min-h-[2.5em] text-xs text-fg-muted">{p.description || t("Pas de description.")}</p>
                   <div className="mt-4 space-y-1.5">
                     <div className="flex items-center justify-between text-[11px] text-fg-subtle">
-                      <span>Progression</span>
+                      <span>{t("Progression")}</span>
                       <span className="tabular-nums">
-                        {done}/{total} tâches
+                        {t("{done}/{total} tâches", { done, total })}
                       </span>
                     </div>
                     <Progress value={total ? ratio : 0} tone={ratio >= 1 && total ? "success" : "accent"} />
                   </div>
                   <div className="mt-4 flex items-center gap-3 text-[11px] text-fg-subtle">
                     <span className="flex items-center gap-1">
-                      <Swords className="size-3" /> {p.warRoomCount ?? 0} War Room{(p.warRoomCount ?? 0) > 1 ? "s" : ""}
+                      <Swords className="size-3" /> {(p.warRoomCount ?? 0) > 1 ? t("{count} War Rooms", { count: p.warRoomCount ?? 0 }) : t("{count} War Room", { count: p.warRoomCount ?? 0 })}
                     </span>
                     <span className="tabular-nums">
-                      {fmtUsd(p.spentUsd ?? 0)} facturé{p.budgetUsd != null ? ` / ${fmtUsd(p.budgetUsd)}` : ""}
+                      {p.budgetUsd != null
+                        ? t("{spent} facturé / {budget}", { spent: fmtUsd(p.spentUsd ?? 0), budget: fmtUsd(p.budgetUsd) })
+                        : t("{spent} facturé", { spent: fmtUsd(p.spentUsd ?? 0) })}
                     </span>
                     <span className="ml-auto">{fmtRelative(p.updatedAt)}</span>
                   </div>
@@ -130,7 +133,7 @@ function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         budgetUsd: budget.trim() ? Number(budget) : null,
       }),
     onSuccess: () => {
-      toast.success("Projet créé");
+      toast.success(t("Projet créé"));
       void qc.invalidateQueries({ queryKey: qk.projects });
       onOpenChange(false);
       setName("");
@@ -147,31 +150,31 @@ function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Nouveau projet"
-      description="Les War Rooms et tâches pourront y être rattachées ensuite."
+      title={t("Nouveau projet")}
+      description={t("Les War Rooms et tâches pourront y être rattachées ensuite.")}
       footer={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Annuler
+            {t("Annuler")}
           </Button>
           <Button variant="primary" loading={create.isPending} disabled={!name.trim() || budgetInvalid} onClick={() => create.mutate()}>
-            Créer
+            {t("Créer")}
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <Field label="Nom">
+        <Field label={t("Nom")}>
           <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="SaaS Analytics" maxLength={120} />
         </Field>
-        <Field label="Description">
+        <Field label={t("Description")}>
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
         </Field>
-        <Field label="Objectifs">
-          <Textarea value={objectives} onChange={(e) => setObjectives(e.target.value)} rows={3} placeholder="Un objectif par ligne" />
+        <Field label={t("Objectifs")}>
+          <Textarea value={objectives} onChange={(e) => setObjectives(e.target.value)} rows={3} placeholder={t("Un objectif par ligne")} />
         </Field>
-        <Field label="Budget API (USD)" hint="Limite stricte sur les coûts facturés par API. Les abonnements ne sont pas comptés. Laisser vide = pas de limite.">
-          <Input value={budget} onChange={(e) => setBudget(e.target.value)} inputMode="decimal" placeholder="ex. 50" />
+        <Field label={t("Budget API (USD)")} hint={t("Limite stricte sur les coûts facturés par API. Les abonnements ne sont pas comptés. Laisser vide = pas de limite.")}>
+          <Input value={budget} onChange={(e) => setBudget(e.target.value)} inputMode="decimal" placeholder={t("ex. 50")} />
         </Field>
       </div>
     </Dialog>

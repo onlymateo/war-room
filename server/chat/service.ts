@@ -17,6 +17,7 @@ import {
 } from "../memory/context";
 import type { AgentParams, MessageDTO, MessageMeta, RunEvent } from "../../shared/types";
 import type { ChatTurn } from "../providers/types";
+import { serverLang, tx } from "../lib/i18n";
 import { toolsForAgent, unavailableToolServers, type ToolRunContext } from "../mcp/tools";
 import { LimitPausedError } from "../limits/guard";
 import { allRoomSecrets, secretsForAgent, secretsPromptSection } from "../secrets/service";
@@ -127,7 +128,14 @@ export async function streamReply(opts: {
   if (setup.agentId) {
     const tools = await toolsForAgent(setup.agentId);
     const missing = await unavailableToolServers(setup.agentId);
-    if (missing.length) emit({ type: "notice", level: "warning", text: `Outils MCP indisponibles (serveur non connecté) : ${missing.join(", ")}.` });
+    if (missing.length) {
+      const lang = await serverLang();
+      emit({
+        type: "notice",
+        level: "warning",
+        text: tx(lang, `Outils MCP indisponibles (serveur non connecté) : ${missing.join(", ")}.`, `MCP tools unavailable (server not connected): ${missing.join(", ")}.`),
+      });
+    }
     if (tools.length) {
       const agent = await db.query.agents.findFirst({ where: eq(schema.agents.id, setup.agentId) });
       toolContext = {
@@ -371,7 +379,12 @@ export async function produceChatReply(opts: {
         const row = await updateMessage(msg.id, { meta: { ...msg.meta, paused: { pausedWorkId: pw.id, resetsAt: err.resumeAt, reason: err.message } } });
         opts.emit({ type: "message_done", message: toMessageDTO(row) });
       }
-      opts.emit({ type: "notice", level: "warning", text: `${err.message} Vous pourrez reprendre ce message après la réinitialisation.` });
+      const lang = await serverLang();
+      opts.emit({
+        type: "notice",
+        level: "warning",
+        text: tx(lang, `${err.message} Vous pourrez reprendre ce message après la réinitialisation.`, `${err.message} You can resume this message after the reset.`),
+      });
       return;
     }
     opts.emit({ type: "error", error: err instanceof Error ? err.message : String(err), messageId: opts.assistantMessageId });
@@ -380,7 +393,14 @@ export async function produceChatReply(opts: {
   // Compress old history in the background-ish (after the reply, before closing the stream).
   try {
     const compressed = await maybeCompress(conv.id, makeSummarizer(opts.setup, { conversationId: conv.id, warRoomId: opts.setup.warRoomId }));
-    if (compressed) opts.emit({ type: "notice", level: "info", text: "Older messages were summarized to keep the context small." });
+    if (compressed) {
+      const lang = await serverLang();
+      opts.emit({
+        type: "notice",
+        level: "info",
+        text: tx(lang, "Les anciens messages ont été résumés pour garder un contexte compact.", "Older messages were summarized to keep the context small."),
+      });
+    }
   } catch (err) {
     log.warn("compression error", err);
   }
@@ -389,7 +409,7 @@ export async function produceChatReply(opts: {
 /** Resume a paused chat reply in place (same pending assistant message). */
 export async function resumeChatReply(pw: typeof schema.pausedWork.$inferSelect, setup: ModelSetup, emit: (e: RunEvent) => void, signal?: AbortSignal) {
   const conv = await db.query.conversations.findFirst({ where: eq(schema.conversations.id, pw.conversationId) });
-  if (!conv) throw new Error("Conversation introuvable");
+  if (!conv) throw new Error(tx(await serverLang(), "Conversation introuvable", "Conversation not found"));
   const payload = pw.payload as { assistantMessageId: string; attachmentIds?: string[] };
   let msg = await db.query.messages.findFirst({ where: eq(schema.messages.id, payload.assistantMessageId) });
   if (!msg) {

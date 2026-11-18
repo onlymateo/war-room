@@ -8,6 +8,7 @@ import { qk } from "@/lib/queries";
 import { cn, fmtDateTime, fmtRelative, fmtTokens, fmtUsd } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { Badge, Card, Dialog, Progress } from "../ui/primitives";
+import { locale, t } from "@/i18n";
 
 export const LEVEL_TONE = { unknown: "neutral", ok: "success", warning: "warning", critical: "danger", exhausted: "danger" } as const;
 export const LEVEL_LABEL = { unknown: "inconnu", ok: "ok", warning: "attention", critical: "pause", exhausted: "épuisée" } as const;
@@ -16,19 +17,20 @@ function fmtTime(ts: number | null) {
   if (!ts) return "—";
   const d = new Date(ts);
   const sameDay = d.toDateString() === new Date().toDateString();
-  return sameDay ? d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : fmtDateTime(ts);
+  return sameDay ? d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) : fmtDateTime(ts);
 }
 
 /** One line describing a window: usage, reset, prediction. */
 export function windowSentence(w: LimitWindowState, pauseAt: number) {
-  if (w.isReset) return `${w.label} : réinitialisée depuis ${fmtTime(w.resetsAt)} (nouvelle mesure au prochain appel).`;
-  if (w.utilization === null) return `${w.label} : pas encore mesurée (aucun appel Claude Code récent).`;
+  const label = t(w.label);
+  if (w.isReset) return t("{label} : réinitialisée depuis {time} (nouvelle mesure au prochain appel).", { label, time: fmtTime(w.resetsAt) });
+  if (w.utilization === null) return t("{label} : pas encore mesurée (aucun appel Claude Code récent).", { label });
   const pct = Math.round(w.utilization * 100);
-  const parts = [`${w.label} : ${pct} %`, `réinitialisation ${fmtTime(w.resetsAt)}`];
+  const parts = [t("{label} : {pct} %", { label, pct }), t("réinitialisation {time}", { time: fmtTime(w.resetsAt) })];
   if (w.ratePerHour !== null && w.ratePerHour > 0) {
-    parts.push(`rythme ≈ ${(w.ratePerHour * 100).toFixed(1)} pts/h`);
-    if (w.willHitBeforeReset && w.etaPauseAt) parts.push(`pause prévue vers ${fmtTime(w.etaPauseAt)} (seuil ${Math.round(pauseAt * 100)} %)`);
-    else parts.push("pas de pause prévue avant la réinitialisation");
+    parts.push(t("rythme ≈ {rate} pts/h", { rate: (w.ratePerHour * 100).toFixed(1) }));
+    if (w.willHitBeforeReset && w.etaPauseAt) parts.push(t("pause prévue vers {time} (seuil {pct} %)", { time: fmtTime(w.etaPauseAt), pct: Math.round(pauseAt * 100) }));
+    else parts.push(t("pas de pause prévue avant la réinitialisation"));
   }
   return parts.join(" · ");
 }
@@ -39,12 +41,12 @@ export function WindowMeter({ w, pauseAt, compact }: { w: LimitWindowState; paus
   return (
     <div className={cn("space-y-1", compact && "space-y-0.5")}>
       <div className="flex items-center justify-between text-xs">
-        <span className={compact ? "text-fg-subtle" : "font-medium"}>{w.label}</span>
-        <span className="tabular-nums text-fg-muted">{w.isReset ? "réinitialisée" : w.utilization === null ? "—" : `${Math.round(w.utilization * 100)} %`}</span>
+        <span className={compact ? "text-fg-subtle" : "font-medium"}>{t(w.label)}</span>
+        <span className="tabular-nums text-fg-muted">{w.isReset ? t("réinitialisée") : w.utilization === null ? "—" : t("{pct} %", { pct: Math.round(w.utilization * 100) })}</span>
       </div>
       <div className="relative">
         <Progress value={value} tone={tone} className={compact ? "h-1" : undefined} />
-        {!compact ? <div className="absolute top-[-2px] h-2.5 w-px bg-danger/70" style={{ left: `${pauseAt * 100}%` }} title="Seuil de pause" /> : null}
+        {!compact ? <div className="absolute top-[-2px] h-2.5 w-px bg-danger/70" style={{ left: `${pauseAt * 100}%` }} title={t("Seuil de pause")} /> : null}
       </div>
     </div>
   );
@@ -74,7 +76,7 @@ export function PausedList({ items, onNavigate }: { items: PausedWorkDTO[]; onNa
       void qc.invalidateQueries({ queryKey: qk.limits });
     },
   });
-  if (!items.length) return <p className="text-xs text-fg-subtle">Aucun travail en pause.</p>;
+  if (!items.length) return <p className="text-xs text-fg-subtle">{t("Aucun travail en pause.")}</p>;
   return (
     <ul className="divide-y divide-border rounded-md border border-border">
       {items.map((p) => (
@@ -83,24 +85,24 @@ export function PausedList({ items, onNavigate }: { items: PausedWorkDTO[]; onNa
             <div className="truncate">{p.title}</div>
             <div className="text-[11px] text-fg-subtle">
               {p.warRoomName ? `${p.warRoomName} · ` : ""}
-              {p.kind === "collective" ? "conversation collective" : "conversation"} · en pause {fmtRelative(p.createdAt)}
-              {p.resetsAt ? ` · reprise possible ${p.status === "ready" ? "maintenant" : `à ${fmtTime(p.resetsAt)}`}` : ""}
+              {p.kind === "collective" ? t("conversation collective") : t("conversation")} · {t("en pause {when}", { when: fmtRelative(p.createdAt) })}
+              {p.resetsAt ? ` · ${p.status === "ready" ? t("reprise possible maintenant") : t("reprise possible à {time}", { time: fmtTime(p.resetsAt) })}` : ""}
             </div>
           </div>
-          <Badge tone={p.status === "ready" ? "success" : "warning"}>{p.status === "ready" ? "prêt à reprendre" : "en pause"}</Badge>
+          <Badge tone={p.status === "ready" ? "success" : "warning"}>{p.status === "ready" ? t("prêt à reprendre") : t("en pause")}</Badge>
           <Link to={p.href} onClick={onNavigate}>
             <Button size="sm" variant={p.status === "ready" ? "primary" : "ghost"}>
-              <Play /> {p.status === "ready" ? "Reprendre ici" : "Reprendre quand même"}
+              <Play /> {p.status === "ready" ? t("Reprendre ici") : t("Reprendre quand même")}
             </Button>
           </Link>
           {p.warRoomId ? (
             <Link to={`/warrooms/${p.warRoomId}?recap=1`} onClick={onNavigate}>
               <Button size="sm" variant="ghost">
-                <FileText /> Récap
+                <FileText /> {t("Récap")}
               </Button>
             </Link>
           ) : null}
-          <Button size="icon-sm" variant="ghost" aria-label="Abandonner" title="Abandonner ce travail" onClick={() => cancel.mutate(p.id)}>
+          <Button size="icon-sm" variant="ghost" aria-label={t("Abandonner")} title={t("Abandonner ce travail")} onClick={() => cancel.mutate(p.id)}>
             <X />
           </Button>
         </li>
@@ -115,57 +117,58 @@ export function LimitReportDialog({ open, onOpenChange }: { open: boolean; onOpe
   const resumeAll = useMutation({
     mutationFn: () => api.post<{ started: boolean; count?: number; reason?: string }>("/limits/paused/resume-all"),
     onSuccess: (r) => {
-      if (r.started) toast.success(`Reprise de ${r.count} travail(aux) en arrière-plan. Les conversations se mettront à jour.`);
-      else toast(r.reason ?? "Rien à reprendre");
+      if (r.started) toast.success(t("Reprise de {count} travail(aux) en arrière-plan. Les conversations se mettront à jour.", { count: r.count }));
+      else toast(r.reason ?? t("Rien à reprendre"));
       setTimeout(() => void qc.invalidateQueries(), 4000);
     },
   });
   const r = report.data;
   const ready = r?.paused.filter((p) => p.status === "ready") ?? [];
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} size="xl" title="Rapport des limites Claude" description={r ? `Établi ${fmtRelative(r.generatedAt)} à partir des mesures renvoyées par Claude Code.` : undefined}>
+    <Dialog open={open} onOpenChange={onOpenChange} size="xl" title={t("Rapport des limites Claude")} description={r ? t("Établi {when} à partir des mesures renvoyées par Claude Code.", { when: fmtRelative(r.generatedAt) }) : undefined}>
       {!r ? (
-        <p className="text-sm text-fg-muted">Chargement…</p>
+        <p className="text-sm text-fg-muted">{t("Chargement…")}</p>
       ) : (
         <div className="space-y-5">
           <div className="grid gap-3 md:grid-cols-2">
             {r.state.windows.map((w) => (
               <Card key={w.key} className="space-y-2 p-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-semibold">{w.label}</span>
-                  <Badge tone={LEVEL_TONE[w.level]}>{LEVEL_LABEL[w.level]}</Badge>
+                  <span className="text-[13px] font-semibold">{t(w.label)}</span>
+                  <Badge tone={LEVEL_TONE[w.level]}>{t(LEVEL_LABEL[w.level])}</Badge>
                 </div>
                 <WindowMeter w={w} pauseAt={r.state.pauseAt} />
                 <div className="space-y-0.5 text-xs text-fg-muted">
                   <div className="flex items-center gap-1.5">
-                    <Clock className="size-3" /> Réinitialisation : {fmtTime(w.resetsAt)}
+                    <Clock className="size-3" /> {t("Réinitialisation : {time}", { time: fmtTime(w.resetsAt) })}
                   </div>
                   {w.ratePerHour !== null && w.ratePerHour > 0 ? (
                     <div className="flex items-center gap-1.5">
-                      <TrendingUp className="size-3" /> Rythme ≈ {(w.ratePerHour * 100).toFixed(1)} points/h
-                      {w.etaPauseAt ? ` · seuil de pause vers ${fmtTime(w.etaPauseAt)}` : ""}
-                      {w.etaExhaustAt ? ` · 100 % vers ${fmtTime(w.etaExhaustAt)}` : ""}
+                      <TrendingUp className="size-3" /> {t("Rythme ≈ {rate} points/h", { rate: (w.ratePerHour * 100).toFixed(1) })}
+                      {w.etaPauseAt ? ` · ${t("seuil de pause vers {time}", { time: fmtTime(w.etaPauseAt) })}` : ""}
+                      {w.etaExhaustAt ? ` · ${t("100 % vers {time}", { time: fmtTime(w.etaExhaustAt) })}` : ""}
                     </div>
                   ) : (
-                    <div>Pas assez de mesures récentes pour estimer le rythme.</div>
+                    <div>{t("Pas assez de mesures récentes pour estimer le rythme.")}</div>
                   )}
-                  {w.observedAt ? <div>Dernière mesure {fmtRelative(w.observedAt)}</div> : null}
+                  {w.observedAt ? <div>{t("Dernière mesure {when}", { when: fmtRelative(w.observedAt) })}</div> : null}
                 </div>
               </Card>
             ))}
           </div>
           <p className="text-[11px] text-fg-subtle">
-            Les pourcentages sont ceux de votre compte Claude (ils incluent l'usage hors WAR ROOM). Ils ne sont mis à jour qu'à chaque appel fait par WAR ROOM. La
-            prédiction suppose que le rythme récent continue. Seuils : alerte à {Math.round(r.state.warnAt * 100)} %, pause à {Math.round(r.state.pauseAt * 100)} % (réglables
-            dans Settings).
+            {t(
+              "Les pourcentages sont ceux de votre compte Claude (ils incluent l'usage hors WAR ROOM). Ils ne sont mis à jour qu'à chaque appel fait par WAR ROOM. La prédiction suppose que le rythme récent continue. Seuils : alerte à {warn} %, pause à {pause} % (réglables dans Settings).",
+              { warn: Math.round(r.state.warnAt * 100), pause: Math.round(r.state.pauseAt * 100) },
+            )}
           </p>
 
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-[13px] font-semibold">Travail en pause ({r.paused.length})</h3>
+              <h3 className="text-[13px] font-semibold">{t("Travail en pause ({count})", { count: r.paused.length })}</h3>
               {ready.length ? (
                 <Button size="sm" variant="primary" onClick={() => resumeAll.mutate()} loading={resumeAll.isPending}>
-                  <Play /> Tout reprendre en arrière-plan ({ready.length})
+                  <Play /> {t("Tout reprendre en arrière-plan ({count})", { count: ready.length })}
                 </Button>
               ) : null}
             </div>
@@ -175,16 +178,20 @@ export function LimitReportDialog({ open, onOpenChange }: { open: boolean; onOpe
           {r.windowsUsage.map((wu) => (
             <section key={wu.key} className="space-y-2">
               <h3 className="text-[13px] font-semibold">
-                Consommation WAR ROOM dans la {wu.label.toLowerCase()} <span className="font-normal text-fg-subtle">(depuis {fmtDateTime(wu.since)})</span>
+                {t("Consommation WAR ROOM dans la {window}", { window: t(wu.label).toLowerCase() })} <span className="font-normal text-fg-subtle">{t("(depuis {date})", { date: fmtDateTime(wu.since) })}</span>
               </h3>
               <p className="text-xs text-fg-muted">
-                {wu.totals.calls} appel(s) · {fmtTokens(wu.totals.output, { compact: true })} tokens générés · {fmtTokens(wu.totals.cacheRead, { compact: true })} lus en cache ·
-                équivalent API {fmtUsd(wu.totals.equivUsd)} (inclus dans l'abonnement)
+                {t("{calls} appel(s) · {output} tokens générés · {cache} lus en cache · équivalent API {usd} (inclus dans l'abonnement)", {
+                  calls: wu.totals.calls,
+                  output: fmtTokens(wu.totals.output, { compact: true }),
+                  cache: fmtTokens(wu.totals.cacheRead, { compact: true }),
+                  usd: fmtUsd(wu.totals.equivUsd),
+                })}
               </p>
               <div className="grid gap-3 md:grid-cols-2">
                 {[
-                  ["Par War Room", wu.byRoom],
-                  ["Par agent", wu.byAgent],
+                  [t("Par War Room"), wu.byRoom],
+                  [t("Par agent"), wu.byAgent],
                 ].map(([label, rows]) => (
                   <Card key={label as string} className="p-3">
                     <div className="mb-1.5 text-xs font-medium text-fg-muted">{label as string}</div>
@@ -192,8 +199,8 @@ export function LimitReportDialog({ open, onOpenChange }: { open: boolean; onOpe
                       <tbody>
                         {(rows as Report["windowsUsage"][number]["byRoom"]).map((x, i) => (
                           <tr key={i}>
-                            <td className="py-0.5">{x.name ?? "Hors War Room"}</td>
-                            <td className="py-0.5 text-right tabular-nums text-fg-muted">{x.calls} appels</td>
+                            <td className="py-0.5">{x.name ?? t("Hors War Room")}</td>
+                            <td className="py-0.5 text-right tabular-nums text-fg-muted">{t("{calls} appels", { calls: x.calls })}</td>
                             <td className="py-0.5 text-right tabular-nums text-fg-muted">{fmtUsd(x.equivUsd)}</td>
                           </tr>
                         ))}
@@ -207,7 +214,7 @@ export function LimitReportDialog({ open, onOpenChange }: { open: boolean; onOpe
 
           {r.recentActivity.length ? (
             <section className="space-y-1.5">
-              <h3 className="text-[13px] font-semibold">Derniers événements</h3>
+              <h3 className="text-[13px] font-semibold">{t("Derniers événements")}</h3>
               <ul className="space-y-0.5 text-xs text-fg-muted">
                 {r.recentActivity.map((a) => (
                   <li key={a.id}>
