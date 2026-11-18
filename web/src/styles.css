@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens. Dark anthracite is the primary theme; light is available.
+ * Surfaces step up in lightness: bg < surface < surface-2 < surface-3.
+ */
+:root {
+  --bg: oklch(0.985 0.002 260);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.97 0.003 260);
+  --surface-3: oklch(0.94 0.004 260);
+  --border: oklch(0.9 0.005 260);
+  --border-strong: oklch(0.82 0.006 260);
+  --fg: oklch(0.22 0.01 260);
+  --fg-muted: oklch(0.48 0.012 260);
+  --fg-subtle: oklch(0.62 0.01 260);
+  --accent: oklch(0.55 0.16 258);
+  --accent-fg: oklch(0.99 0 0);
+  --accent-soft: oklch(0.55 0.16 258 / 0.1);
+  --success: oklch(0.6 0.14 155);
+  --warning: oklch(0.7 0.15 75);
+  --danger: oklch(0.58 0.2 25);
+  --ring: oklch(0.55 0.16 258 / 0.45);
+}
+
+.dark {
+  --bg: oklch(0.165 0.006 265);
+  --surface: oklch(0.195 0.007 265);
+  --surface-2: oklch(0.225 0.008 265);
+  --surface-3: oklch(0.26 0.009 265);
+  --border: oklch(0.28 0.008 265);
+  --border-strong: oklch(0.35 0.01 265);
+  --fg: oklch(0.94 0.004 265);
+  --fg-muted: oklch(0.7 0.01 265);
+  --fg-subtle: oklch(0.55 0.012 265);
+  --accent: oklch(0.72 0.12 258);
+  --accent-fg: oklch(0.16 0.01 265);
+  --accent-soft: oklch(0.72 0.12 258 / 0.12);
+  --success: oklch(0.72 0.14 155);
+  --warning: oklch(0.8 0.14 80);
+  --danger: oklch(0.68 0.18 25);
+  --ring: oklch(0.72 0.12 258 / 0.5);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-ring: var(--ring);
+  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 1px;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--surface-3);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Rendered markdown in chat messages */
+.prose-chat {
+  overflow-wrap: anywhere;
+}
+.prose-chat > * + * {
+  margin-top: 0.6em;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3 {
+  font-weight: 600;
+  margin-top: 1em;
+}
+.prose-chat h1 { font-size: 1.15em; }
+.prose-chat h2 { font-size: 1.08em; }
+.prose-chat h3 { font-size: 1em; }
+.prose-chat ul { list-style: disc; padding-left: 1.3em; }
+.prose-chat ol { list-style: decimal; padding-left: 1.3em; }
+.prose-chat li + li { margin-top: 0.2em; }
+.prose-chat a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.prose-chat code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--surface-3);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.prose-chat pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8em 1em;
+  overflow-x: auto;
+  font-size: 0.86em;
+}
+.prose-chat pre code { background: none; padding: 0; }
+.prose-chat blockquote { border-left: 2px solid var(--border-strong); padding-left: 0.8em; color: var(--fg-muted); }
+.prose-chat table { border-collapse: collapse; font-size: 0.92em; display: block; overflow-x: auto; }
+.prose-chat th, .prose-chat td { border: 1px solid var(--border); padding: 0.3em 0.6em; text-align: left; }
+.prose-chat th { background: var(--surface-2); font-weight: 600; }
+.prose-chat hr { border-color: var(--border); }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.animate-pulse-dot { animation: pulse-dot 1.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

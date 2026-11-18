@@ -1,0 +1,66 @@
+import { useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
+import { streamRun } from "@/lib/api";
+import type { MessageDTO, RunEvent } from "@shared/types";
+
+/**
+ * Holds a message list and applies RunEvents from an SSE run to it
+ * (message_created / delta / message_done / plan), with cancellation.
+ */
+export function useRunStream(initial: MessageDTO[] = []) {
+  const [messages, setMessages] = useState<MessageDTO[]>(initial);
+  const [running, setRunning] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<Record<string, string>>({});
+  const abortRef = useRef<AbortController | null>(null);
+
+  const apply = useCallback((e: RunEvent) => {
+    switch (e.type) {
+      case "message_created":
+      case "plan":
+        setMessages((prev) => (prev.some((m) => m.id === e.message.id) ? prev.map((m) => (m.id === e.message.id ? e.message : m)) : [...prev, e.message]));
+        break;
+      case "delta":
+        setMessages((prev) => prev.map((m) => (m.id === e.messageId ? { ...m, content: m.content + e.text } : m)));
+        break;
+      case "message_done":
+        setMessages((prev) => (prev.some((m) => m.id === e.message.id) ? prev.map((m) => (m.id === e.message.id ? e.message : m)) : [...prev, e.message]));
+        break;
+      case "status":
+        if (e.agentId) setAgentStatus((s) => ({ ...s, [e.agentId!]: e.status }));
+        break;
+      case "notice":
+        if (e.level === "error") toast.error(e.text);
+        else if (e.level === "warning") toast.warning(e.text);
+        else toast(e.text);
+        break;
+      case "error":
+        toast.error(e.error);
+        break;
+      case "run_done":
+        break;
+    }
+  }, []);
+
+  const run = useCallback(
+    async (url: string, body: unknown, onDone?: () => void) => {
+      const ac = new AbortController();
+      abortRef.current = ac;
+      setRunning(true);
+      try {
+        await streamRun(url, body, apply, ac.signal);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : String(err));
+      } finally {
+        setRunning(false);
+        setAgentStatus({});
+        abortRef.current = null;
+        onDone?.();
+      }
+    },
+    [apply],
+  );
+
+  const stop = useCallback(() => abortRef.current?.abort(), []);
+
+  return { messages, setMessages, running, run, stop, agentStatus };
+}
