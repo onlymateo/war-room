@@ -14,6 +14,7 @@ import { Composer } from "../chat/Composer";
 import { MessageItem, useStickToBottom } from "../chat/MessageList";
 import { useRunStream } from "../chat/useRunStream";
 import { ApprovalCards } from "../chat/ToolCalls";
+import { useResumeParam } from "../chat/useResumeParam";
 import { AgentEditor } from "./AgentEditor";
 import { useRoom } from "./shared";
 
@@ -38,6 +39,7 @@ export default function AgentChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conv.data?.conversation.id]);
   const scrollRef = useStickToBottom(stream.messages);
+  useResumeParam(stream.run, !!conv.data, () => void qc.invalidateQueries({ queryKey: ["agent-conv-usage"] }));
 
   const agent = room.data?.agents.find((a) => a.id === agentId);
   const orch = room.data?.agents.find((a) => a.role === "orchestrator");

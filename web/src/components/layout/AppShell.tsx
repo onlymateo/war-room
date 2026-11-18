@@ -5,7 +5,10 @@ import {
   PanelLeftOpen, Search, Sun, Moon, CircleUser,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSettings, useSystemStatus } from "@/lib/queries";
+import { useLimitState, useSettings, useSystemStatus } from "@/lib/queries";
+import { LimitBanner } from "../limits/LimitBanner";
+import { LimitReportDialog, WindowMeter } from "../limits/LimitReport";
+import { GlobalApprovals } from "@/features/chat/ToolCalls";
 import { Kbd, StatusDot, Tooltip } from "../ui/primitives";
 import { CommandPalette } from "./CommandPalette";
 
@@ -51,6 +54,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const status = useSystemStatus();
   const settings = useSettings();
+  const limits = useLimitState();
+  const [quotaReport, setQuotaReport] = useState(false);
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -150,6 +155,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="space-y-1 border-t border-border p-2">
+          {!collapsed && limits.data && limits.data.windows.some((w) => w.utilization !== null || w.isReset) ? (
+            <button onClick={() => setQuotaReport(true)} className="block w-full space-y-1.5 rounded-md px-2.5 py-1.5 text-left hover:bg-surface-2" title="Rapport des limites Claude">
+              <div className="text-[11px] text-fg-subtle">Abonnement Claude</div>
+              {limits.data.windows.map((w) => (
+                <WindowMeter key={w.key} w={w} pauseAt={limits.data!.pauseAt} compact />
+              ))}
+            </button>
+          ) : null}
           {!collapsed && s ? (
             <div className="space-y-1 px-2.5 py-1.5 text-[11px] text-fg-subtle">
               <div className="flex items-center justify-between">
@@ -187,8 +200,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+      <main className="flex min-w-0 flex-1 flex-col">
+        <LimitBanner />
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      </main>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <GlobalApprovals />
+      <LimitReportDialog open={quotaReport} onOpenChange={setQuotaReport} />
     </div>
   );
 }

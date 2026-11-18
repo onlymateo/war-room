@@ -1,5 +1,8 @@
-import { Link, useParams, useSearchParams } from "react-router";
-import { ArrowLeft, MessageSquare, Network, Bot, ListTodo, Sparkles, Activity, BarChart3, Settings2, Crown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { ArrowLeft, MessageSquare, Network, Bot, ListTodo, Sparkles, Activity, BarChart3, Settings2, Crown, Trash2, FileText, CalendarClock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useDeleteRoomDialog } from "./deletion";
 import { useModels } from "@/lib/queries";
 import { fmtUsd } from "@/lib/utils";
 import { Badge, Skeleton, Tabs, Tooltip } from "@/components/ui/primitives";
@@ -9,6 +12,8 @@ import { CollectiveTab } from "./CollectiveTab";
 import { OrgTab } from "./OrgTab";
 import { AnalysisTab } from "./AnalysisTab";
 import { ActivityTab, AgentsTab, RoomSettingsTab, RoomUsageTab, TasksTab } from "./RoomTabs";
+import { ReportsTab } from "./ReportsTab";
+import { RecapDialog } from "./RecapDialog";
 
 export default function WarRoomPage() {
   const { id = "" } = useParams();
@@ -16,6 +21,19 @@ export default function WarRoomPage() {
   const tab = params.get("tab") ?? "collective";
   const { data, isLoading, error } = useRoom(id);
   const models = useModels();
+  const navigate = useNavigate();
+  const deleteRoom = useDeleteRoomDialog(() => navigate("/warrooms"));
+  const [recapOpen, setRecapOpen] = useState(false);
+
+  // ?recap=1 opens the context recap (link from the limit report).
+  useEffect(() => {
+    if (params.get("recap") === "1") {
+      setRecapOpen(true);
+      const next = new URLSearchParams(params);
+      next.delete("recap");
+      setParams(next, { replace: true });
+    }
+  }, [params, setParams]);
 
   if (isLoading) {
     return (
@@ -73,6 +91,16 @@ export default function WarRoomPage() {
                 </Badge>
               </span>
             </Tooltip>
+            <Tooltip content="Récapitulatif du contexte, à transmettre à une autre IA">
+              <Button size="sm" variant="secondary" onClick={() => setRecapOpen(true)}>
+                <FileText /> Récap contexte
+              </Button>
+            </Tooltip>
+            <Tooltip content="Supprimer la War Room">
+              <Button variant="danger-ghost" size="icon-sm" aria-label="Supprimer la War Room" onClick={() => deleteRoom.ask({ id: room.id, name: room.name, agentCount: agents.length })}>
+                <Trash2 />
+              </Button>
+            </Tooltip>
           </div>
         </div>
         <Tabs
@@ -84,6 +112,7 @@ export default function WarRoomPage() {
             { value: "org", label: "Organisation", icon: <Network /> },
             { value: "agents", label: "Agents", icon: <Bot />, count: agents.length },
             { value: "tasks", label: "Tâches", icon: <ListTodo /> },
+            { value: "reports", label: "Rapports", icon: <CalendarClock /> },
             { value: "analysis", label: "Analyse & Skills", icon: <Sparkles /> },
             { value: "activity", label: "Journal", icon: <Activity /> },
             { value: "usage", label: "Consommation", icon: <BarChart3 /> },
@@ -96,11 +125,14 @@ export default function WarRoomPage() {
         {tab === "org" ? <OrgTab detail={data} /> : null}
         {tab === "agents" ? <AgentsTab detail={data} /> : null}
         {tab === "tasks" ? <TasksTab detail={data} /> : null}
+        {tab === "reports" ? <ReportsTab detail={data} /> : null}
         {tab === "analysis" ? <AnalysisTab detail={data} /> : null}
         {tab === "activity" ? <ActivityTab detail={data} /> : null}
         {tab === "usage" ? <RoomUsageTab detail={data} /> : null}
         {tab === "settings" ? <RoomSettingsTab detail={data} /> : null}
       </div>
+      {deleteRoom.dialog}
+      <RecapDialog warRoomId={room.id} open={recapOpen} onOpenChange={setRecapOpen} />
     </div>
   );
 }

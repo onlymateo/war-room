@@ -1,14 +1,16 @@
 import { Link } from "react-router";
-import { Plus, Swords, Users, ListTodo } from "lucide-react";
+import { Plus, Swords, Users, ListTodo, Trash2 } from "lucide-react";
 import { useModels, useWarRooms } from "@/lib/queries";
 import { fmtRelative, fmtUsd } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Badge, Card, EmptyState, Page, PageHeader, Progress, Skeleton } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Page, PageHeader, Progress, Skeleton, Tooltip } from "@/components/ui/primitives";
 import { AgentAvatar, AUTONOMY_LABEL, STRATEGY_LABEL, modelLabel } from "@/components/domain";
+import { useDeleteRoomDialog } from "./deletion";
 
 export default function WarRoomsPage() {
   const rooms = useWarRooms();
   const models = useModels();
+  const deleteRoom = useDeleteRoomDialog();
   return (
     <Page>
       <PageHeader
@@ -51,7 +53,23 @@ export default function WarRoomsPage() {
                     <h3 className="truncate text-[14px] font-semibold">{r.name}</h3>
                     <p className="mt-0.5 line-clamp-2 text-xs text-fg-muted">{r.description || r.objective || "Pas de description"}</p>
                   </div>
-                  {r.status !== "active" ? <Badge tone="warning">{r.status}</Badge> : null}
+                  <div className="flex shrink-0 items-center gap-1">
+                    {r.status !== "active" ? <Badge tone="warning">{r.status}</Badge> : null}
+                    <Tooltip content="Supprimer la War Room">
+                      <Button
+                        variant="danger-ghost"
+                        size="icon-sm"
+                        aria-label={`Supprimer ${r.name}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          deleteRoom.ask({ id: r.id, name: r.name, agentCount: r.agentCount, openTasks: r.openTasks });
+                        }}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </Tooltip>
+                  </div>
                 </div>
                 {r.orchestrator ? (
                   <div className="mt-4 flex items-center gap-2.5">
@@ -84,6 +102,7 @@ export default function WarRoomsPage() {
           ))}
         </div>
       )}
+      {deleteRoom.dialog}
     </Page>
   );
 }

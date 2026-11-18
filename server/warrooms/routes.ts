@@ -7,8 +7,7 @@ import { newId, now } from "../lib/ids";
 import { logActivity } from "../activity/log";
 import { getModel } from "../providers/registry";
 import { sendChatMessage, toMessageDTO } from "../chat/service";
-import { decidePlan, loadRoom, runCollective, setupFor } from "../orchestration/engine";
-import { agentSystemPrompt } from "../orchestration/prompts";
+import { agentChatSetup, decidePlan, runCollective } from "../orchestration/engine";
 import { analyzeBrief, applyAnalysis } from "./analysis";
 import { warRoomSpend, agentSpend } from "../usage/budget";
 import { DEFAULT_PERMISSIONS } from "../../shared/types";
@@ -211,9 +210,15 @@ warRoomRoutes.delete("/warrooms/:id", async (c) => {
   const convIds = convs.map((x) => x.id);
   if (convIds.length) await db.delete(schema.messages).where(inArray(schema.messages.conversationId, convIds));
   await db.delete(schema.conversations).where(eq(schema.conversations.warRoomId, id));
+  const agentIds = (await db.select({ id: schema.agents.id }).from(schema.agents).where(eq(schema.agents.warRoomId, id))).map((a) => a.id);
+  // Memories tied to the room, its agents or its conversations go with it.
+  const scopeIds = [id, ...agentIds, ...convIds];
+  await db.delete(schema.memories).where(inArray(schema.memories.scopeId, scopeIds));
   await db.delete(schema.agents).where(eq(schema.agents.warRoomId, id));
   await db.delete(schema.tasks).where(eq(schema.tasks.warRoomId, id));
   await db.delete(schema.activity).where(eq(schema.activity.warRoomId, id));
+  await db.delete(schema.roomReports).where(eq(schema.roomReports.warRoomId, id));
+  await db.update(schema.pausedWork).set({ status: "cancelled" }).where(eq(schema.pausedWork.warRoomId, id));
   await db.update(schema.files).set({ warRoomId: null }).where(eq(schema.files.warRoomId, id));
   // Usage events are kept (spend history stays truthful) but detached.
   await db.update(schema.usageEvents).set({ warRoomId: null }).where(eq(schema.usageEvents.warRoomId, id));
@@ -298,6 +303,7 @@ warRoomRoutes.delete("/agents/:id", async (c) => {
   const convs = await db.select({ id: schema.conversations.id }).from(schema.conversations).where(eq(schema.conversations.agentId, id));
   if (convs.length) await db.delete(schema.messages).where(inArray(schema.messages.conversationId, convs.map((x) => x.id)));
   await db.delete(schema.conversations).where(eq(schema.conversations.agentId, id));
+  await db.delete(schema.memories).where(inArray(schema.memories.scopeId, [id, ...convs.map((x) => x.id)]));
   await db.update(schema.tasks).set({ assigneeAgentId: null }).where(eq(schema.tasks.assigneeAgentId, id));
   await db.delete(schema.agents).where(eq(schema.agents.id, id));
   await logActivity({ type: "agent_removed", summary: `Agent ${agent!.name} removed`, warRoomId: agent!.warRoomId });
@@ -341,30 +347,14 @@ warRoomRoutes.post("/agents/:id/messages", async (c) => {
   if (!agent) notFound("Agent");
   const conv = await db.query.conversations.findFirst({ where: and(eq(schema.conversations.agentId, id), eq(schema.conversations.kind, "agent")) });
   if (!conv) badRequest("Open the agent conversation first");
-  let room = null;
-  let team: (typeof schema.agents.$inferSelect)[] = [];
-  let orch = agent!;
-  if (agent!.warRoomId) {
-    const loaded = await loadRoom(agent!.warRoomId);
-    room = loaded.room;
-    team = loaded.agents;
-    orch = loaded.orch;
+  let setup;
+  try {
+    setup = await agentChatSetup(id);
+  } catch (err) {
+    badRequest(err instanceof Error ? err.message : String(err));
   }
-  const system =
-    agent!.role === "orchestrator" && room
-      ? agentSystemPrompt(agent!, room, team, null)
-      : agentSystemPrompt(agent!, room, team, room ? orch.name : null);
-  const setup = room ? setupFor(agent!, { room, agents: team, orch }, system) : null;
-  if (!setup && (!agent!.providerId || !agent!.modelId)) badRequest("This agent has no model.");
   return sseRun(c, (emit, signal) =>
-    sendChatMessage({
-      conversationId: conv!.id,
-      content: input.content,
-      attachmentIds: input.attachmentIds,
-      setup: setup ?? { providerId: agent!.providerId!, modelId: agent!.modelId!, system, params: agent!.params, agentId: agent!.id },
-      emit,
-      signal,
-    }),
+    sendChatMessage({ conversationId: conv!.id, content: input.content, attachmentIds: input.attachmentIds, setup: setup!, emit, signal }),
   );
 });
 

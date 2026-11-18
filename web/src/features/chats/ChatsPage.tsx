@@ -14,6 +14,7 @@ import { ModelPicker, modelLabel } from "@/components/domain";
 import { Composer } from "../chat/Composer";
 import { MessageItem, useStickToBottom } from "../chat/MessageList";
 import { useRunStream } from "../chat/useRunStream";
+import { useResumeParam } from "../chat/useResumeParam";
 
 const LAST_MODEL_KEY = "wr-last-chat-model";
 
@@ -163,6 +164,7 @@ function ChatView({ id }: { id: string }) {
   }, [data?.conversation.id]);
 
   const scrollRef = useStickToBottom(stream.messages);
+  useResumeParam(stream.run, !!data, () => void qc.invalidateQueries({ queryKey: ["chats"] }));
   const conv = data?.conversation;
 
   const patch = useMutation({

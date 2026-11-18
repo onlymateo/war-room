@@ -9,6 +9,7 @@ import { messagesToTurns, normalizeTurns } from "./memory/context";
 import { adjustTier, pickModelFromList } from "./usage/optimizer";
 import { matchSkill, parseFrontMatter, type SkillInfo } from "./skills/inventory";
 import { isToolAllowed } from "./mcp/tools";
+import { computeWindow, parseRateLimitInfo } from "./limits/guard";
 import type { schema } from "./db/client";
 
 const claudePrice = { inputPrice: 4, outputPrice: 20, cacheReadPrice: 0.2, cacheWritePrice: 5 };
@@ -208,6 +209,60 @@ describe("per-agent MCP tool allowlist", () => {
     expect(isToolAllowed({ srv: ["script_read"] }, "srv", "save_place")).toBe(false);
     expect(isToolAllowed({ srv: [] }, "srv", "script_read")).toBe(false);
     expect(isToolAllowed({ other: [] }, "srv", "script_read")).toBe(true);
+  });
+});
+
+describe("Claude limit guard", () => {
+  const H = 3_600_000;
+  const t0 = 1_800_000_000_000;
+  const reset = t0 + 3 * H;
+
+  it("parses Claude Code rate_limit_info (seconds -> ms)", () => {
+    const out = parseRateLimitInfo(
+      { status: "allowed", unifiedWindows: { five_hour: { utilization: 0.04, resetsAt: 1795008000, status: "allowed" }, seven_day: { utilization: 0.18, resetsAt: 1795125600, status: "allowed" } } },
+      t0,
+    );
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ window: "five_hour", snap: { utilization: 0.04, resetsAt: 1795008000_000, status: "allowed", observedAt: t0 } });
+  });
+
+  it("predicts when the pause threshold will be reached from the recent rate", () => {
+    const snaps = [
+      { utilization: 0.5, resetsAt: reset, status: "allowed", observedAt: t0 },
+      { utilization: 0.6, resetsAt: reset, status: "allowed", observedAt: t0 + 0.5 * H },
+    ];
+    const w = computeWindow("five_hour", "5 h", snaps, t0 + 0.5 * H, 0.8, 0.95, 90 * 60_000);
+    expect(w.ratePerHour).toBeCloseTo(0.2, 6);
+    // 0.35 left to 95 % at 0.2/h -> 1.75 h after the last observation, before the reset.
+    expect(w.etaPauseAt).toBe(t0 + 0.5 * H + 1.75 * H);
+    expect(w.willHitBeforeReset).toBe(true);
+    expect(w.level).toBe("ok");
+  });
+
+  it("warns when the threshold is predicted within the hour, pauses above it", () => {
+    const fast = [
+      { utilization: 0.5, resetsAt: reset, status: "allowed", observedAt: t0 },
+      { utilization: 0.7, resetsAt: reset, status: "allowed", observedAt: t0 + 0.25 * H },
+    ];
+    expect(computeWindow("five_hour", "5 h", fast, t0 + 0.25 * H, 0.8, 0.95, 90 * 60_000).level).toBe("warning");
+    const high = [{ utilization: 0.96, resetsAt: reset, status: "allowed", observedAt: t0 }];
+    expect(computeWindow("five_hour", "5 h", high, t0, 0.8, 0.95, 90 * 60_000).level).toBe("critical");
+    const rejected = [{ utilization: 1, resetsAt: reset, status: "rejected", observedAt: t0 }];
+    expect(computeWindow("five_hour", "5 h", rejected, t0, 0.8, 0.95, 90 * 60_000).level).toBe("exhausted");
+  });
+
+  it("treats a window as reset once its reset time has passed", () => {
+    const snaps = [{ utilization: 1, resetsAt: reset, status: "rejected", observedAt: t0 }];
+    const w = computeWindow("five_hour", "5 h", snaps, reset + 1, 0.8, 0.95, 90 * 60_000);
+    expect(w).toMatchObject({ isReset: true, level: "ok", utilization: null });
+  });
+
+  it("ignores observations from a previous window when computing the rate", () => {
+    const snaps = [
+      { utilization: 0.9, resetsAt: t0, status: "allowed", observedAt: t0 - H },
+      { utilization: 0.1, resetsAt: reset, status: "allowed", observedAt: t0 + 0.1 * H },
+    ];
+    expect(computeWindow("five_hour", "5 h", snaps, t0 + 0.1 * H, 0.8, 0.95, 90 * 60_000).ratePerHour).toBeNull();
   });
 });
 

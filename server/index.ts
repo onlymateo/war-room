@@ -18,6 +18,9 @@ import { skillRoutes } from "./skills/routes";
 import { mcpRoutes } from "./mcp/routes";
 import { mcpProxyRoutes } from "./mcp/proxy";
 import { promptRoutes } from "./prompt/routes";
+import { limitRoutes } from "./limits/routes";
+import { tickPausedWork } from "./limits/store";
+import { maybeGenerateDailyReports } from "./warrooms/reports";
 import { memoryRoutes } from "./memory/routes";
 import { BudgetExceededError } from "./usage/budget";
 import { connectEnabledServers } from "./mcp/manager";
@@ -49,6 +52,7 @@ const api = new Hono();
 api.route("/", systemRoutes);
 api.route("/", mcpProxyRoutes);
 api.route("/", promptRoutes);
+api.route("/", limitRoutes);
 api.route("/", providerRoutes);
 api.route("/", chatRoutes);
 api.route("/", fileRoutes);
@@ -87,6 +91,14 @@ async function main() {
   await initDatabase();
   await seedCatalog();
   void connectEnabledServers();
+  // Paused work becomes "ready" once its quota window has reset (checked every minute).
+  // Daily War Room progress reports (after the configured hour, catching up if the app was off).
+  const tick = () => {
+    void tickPausedWork();
+    void maybeGenerateDailyReports();
+  };
+  tick();
+  setInterval(tick, 60_000);
   serve({ fetch: app.fetch, hostname: env.host, port: env.port }, (info) => {
     log.info(`API listening on http://${env.host}:${info.port} (data: ${env.dataDir})`);
     if (fs.existsSync(paths.webDist)) log.info(`UI available at http://${env.host}:${info.port}`);

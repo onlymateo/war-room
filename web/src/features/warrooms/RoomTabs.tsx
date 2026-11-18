@@ -13,24 +13,17 @@ import { Badge, Card, CardHeader, Dialog, EmptyState, Progress, Stat } from "@/c
 import { AgentAvatar, AUTONOMY_HINT, AUTONOMY_LABEL, CostTag, STRATEGY_HINT, STRATEGY_LABEL, modelLabel } from "@/components/domain";
 import { AgentEditor } from "./AgentEditor";
 import { TASK_STATUSES, TASK_STATUS_LABEL, type RoomDetail } from "./shared";
+import { useDeleteAgentDialog, useDeleteRoomDialog } from "./deletion";
 
 // ------------------------------------------------------------------ Agents
 
 export function AgentsTab({ detail }: { detail: RoomDetail }) {
   const { room, agents, agentSpentUsd } = detail;
-  const qc = useQueryClient();
   const models = useModels();
   const [editing, setEditing] = useState<Agent | null>(null);
   const [open, setOpen] = useState(false);
   const orch = agents.find((a) => a.role === "orchestrator");
-  const remove = useMutation({
-    mutationFn: (id: string) => api.del(`/agents/${id}`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: qk.warroom(room.id) });
-      void qc.invalidateQueries({ queryKey: qk.agents });
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message : String(err)),
-  });
+  const deleteAgent = useDeleteAgentDialog();
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-6xl px-6 py-5">
@@ -91,7 +84,7 @@ export function AgentsTab({ detail }: { detail: RoomDetail }) {
                   <Pencil /> Configurer
                 </Button>
                 {a.role !== "orchestrator" ? (
-                  <Button size="icon-sm" variant="danger-ghost" onClick={() => confirm(`Supprimer ${a.name} et sa conversation individuelle ?`) && remove.mutate(a.id)} aria-label="Supprimer">
+                  <Button size="icon-sm" variant="danger-ghost" onClick={() => deleteAgent.ask({ id: a.id, name: a.name, warRoomId: room.id })} aria-label={`Supprimer ${a.name}`}>
                     <Trash2 />
                   </Button>
                 ) : null}
@@ -101,6 +94,7 @@ export function AgentsTab({ detail }: { detail: RoomDetail }) {
         </div>
       </div>
       <AgentEditor warRoomId={room.id} agent={editing} open={open} onOpenChange={setOpen} />
+      {deleteAgent.dialog}
     </div>
   );
 }
@@ -552,13 +546,7 @@ export function RoomSettingsTab({ detail }: { detail: RoomDetail }) {
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : String(err)),
   });
-  const remove = useMutation({
-    mutationFn: () => api.del(`/warrooms/${room.id}`),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: qk.warrooms });
-      navigate("/warrooms");
-    },
-  });
+  const deleteRoom = useDeleteRoomDialog(() => navigate("/warrooms"));
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto max-w-3xl space-y-5 px-6 py-5">
@@ -630,7 +618,7 @@ export function RoomSettingsTab({ detail }: { detail: RoomDetail }) {
           </div>
         </Card>
         <div className="flex justify-between">
-          <Button variant="danger-ghost" onClick={() => confirm(`Supprimer définitivement « ${room.name} », ses agents, conversations et tâches ? L'historique de consommation est conservé.`) && remove.mutate()}>
+          <Button variant="danger-ghost" onClick={() => deleteRoom.ask({ id: room.id, name: room.name, agentCount: detail.agents.length })}>
             <Trash2 /> Supprimer la War Room
           </Button>
           <Button variant="primary" onClick={() => save.mutate()} loading={save.isPending}>
@@ -638,6 +626,7 @@ export function RoomSettingsTab({ detail }: { detail: RoomDetail }) {
           </Button>
         </div>
       </div>
+      {deleteRoom.dialog}
     </div>
   );
 }

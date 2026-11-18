@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Copy, User, FileWarning, Download, CircleSlash } from "lucide-react";
+import { AlertTriangle, Copy, User, FileWarning, Download, CircleSlash, PauseCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { FileDTO, MessageDTO } from "@shared/types";
 import { api } from "@/lib/api";
@@ -113,6 +114,20 @@ export function MessageItem({ message, speaker, modelName, extra }: { message: M
             <span>
               Non transmis au modèle : {skipped.map((s) => `${s.name} (${s.reason})`).join(" ; ")}. Le modèle ne les a pas vus.
             </span>
+          </div>
+        ) : null}
+        {message.status === "pending" && message.meta.paused ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+            <PauseCircle className="size-3.5 shrink-0" />
+            <span className="flex-1">
+              Réponse en pause : limite Claude.
+              {message.meta.paused.resetsAt ? ` Reprise possible après ${new Date(message.meta.paused.resetsAt).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" })}.` : ""}
+            </span>
+            {message.meta.paused.pausedWorkId ? (
+              <Link to={{ search: `?resume=${message.meta.paused.pausedWorkId}` }} className="font-medium underline underline-offset-2">
+                Reprendre maintenant
+              </Link>
+            ) : null}
           </div>
         ) : null}
         {message.status === "error" ? (

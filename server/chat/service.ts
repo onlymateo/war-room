@@ -18,6 +18,8 @@ import {
 import type { AgentParams, MessageDTO, MessageMeta, RunEvent } from "../../shared/types";
 import type { ChatTurn } from "../providers/types";
 import { toolsForAgent, unavailableToolServers, type ToolRunContext } from "../mcp/tools";
+import { LimitPausedError } from "../limits/guard";
+import { createPausedWork } from "../limits/store";
 
 type MessageRow = typeof schema.messages.$inferSelect;
 
@@ -189,6 +191,17 @@ export async function streamReply(opts: {
     emit({ type: "message_done", message: toMessageDTO(row) });
     return row;
   } catch (err) {
+    if (err instanceof LimitPausedError) {
+      // Quota guard: keep the reply as "pending" so it can be produced after the reset.
+      const row = await updateMessage(opts.assistantMessageId, {
+        content: err.partialText || content,
+        status: "pending",
+        error: null,
+        meta: { ...(opts.extraMeta ?? {}), ...toolMeta(), paused: { resetsAt: err.resumeAt, reason: err.message } },
+      });
+      emit({ type: "message_done", message: toMessageDTO(row) });
+      throw err;
+    }
     const message = err instanceof Error ? err.message : String(err);
     const partial = err instanceof ModelCallError ? err.partialText : content;
     const row = await updateMessage(opts.assistantMessageId, {
@@ -305,17 +318,58 @@ export async function sendChatMessage(opts: {
   });
   opts.emit({ type: "message_created", message: toMessageDTO(assistant) });
 
+  await produceChatReply({
+    conv,
+    assistantMessageId: assistant.id,
+    setup: opts.setup,
+    attachmentIds: opts.attachmentIds,
+    title: opts.content.trim().replace(/\s+/g, " ").slice(0, 80) || conv.title,
+    emit: opts.emit,
+    signal: opts.signal,
+  });
+}
+
+/** Stream the reply into an existing assistant message; a quota pause is recorded for later resumption. */
+export async function produceChatReply(opts: {
+  conv: typeof schema.conversations.$inferSelect;
+  assistantMessageId: string;
+  setup: ModelSetup;
+  attachmentIds: string[];
+  title: string;
+  emit: (e: RunEvent) => void;
+  signal?: AbortSignal;
+}) {
+  const { conv } = opts;
   try {
     await streamReply({
       conversationId: conv.id,
-      assistantMessageId: assistant.id,
+      assistantMessageId: opts.assistantMessageId,
       setup: opts.setup,
       attachmentSourceIds: opts.attachmentIds,
       emit: opts.emit,
       signal: opts.signal,
     });
   } catch (err) {
-    opts.emit({ type: "error", error: err instanceof Error ? err.message : String(err), messageId: assistant.id });
+    if (err instanceof LimitPausedError) {
+      const pw = await createPausedWork({
+        kind: "chat",
+        warRoomId: conv.warRoomId,
+        conversationId: conv.id,
+        agentId: conv.agentId,
+        title: opts.title,
+        payload: { assistantMessageId: opts.assistantMessageId, attachmentIds: opts.attachmentIds },
+        reason: err.message,
+        resetsAt: err.resumeAt,
+      });
+      const msg = await db.query.messages.findFirst({ where: eq(schema.messages.id, opts.assistantMessageId) });
+      if (msg) {
+        const row = await updateMessage(msg.id, { meta: { ...msg.meta, paused: { pausedWorkId: pw.id, resetsAt: err.resumeAt, reason: err.message } } });
+        opts.emit({ type: "message_done", message: toMessageDTO(row) });
+      }
+      opts.emit({ type: "notice", level: "warning", text: `${err.message} Vous pourrez reprendre ce message après la réinitialisation.` });
+      return;
+    }
+    opts.emit({ type: "error", error: err instanceof Error ? err.message : String(err), messageId: opts.assistantMessageId });
   }
 
   // Compress old history in the background-ish (after the reply, before closing the stream).
@@ -325,4 +379,20 @@ export async function sendChatMessage(opts: {
   } catch (err) {
     log.warn("compression error", err);
   }
+}
+
+/** Resume a paused chat reply in place (same pending assistant message). */
+export async function resumeChatReply(pw: typeof schema.pausedWork.$inferSelect, setup: ModelSetup, emit: (e: RunEvent) => void, signal?: AbortSignal) {
+  const conv = await db.query.conversations.findFirst({ where: eq(schema.conversations.id, pw.conversationId) });
+  if (!conv) throw new Error("Conversation introuvable");
+  const payload = pw.payload as { assistantMessageId: string; attachmentIds?: string[] };
+  let msg = await db.query.messages.findFirst({ where: eq(schema.messages.id, payload.assistantMessageId) });
+  if (!msg) {
+    msg = await insertMessage({ conversationId: conv.id, role: "assistant", status: "streaming", agentId: setup.agentId ?? null, providerId: setup.providerId, modelId: setup.modelId });
+  } else {
+    const { paused: _paused, ...meta } = msg.meta;
+    msg = await updateMessage(msg.id, { status: "streaming", content: "", error: null, meta, providerId: setup.providerId, modelId: setup.modelId });
+  }
+  emit({ type: "message_created", message: toMessageDTO(msg) });
+  await produceChatReply({ conv, assistantMessageId: msg.id, setup, attachmentIds: payload.attachmentIds ?? [], title: pw.title, emit, signal });
 }

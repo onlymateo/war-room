@@ -11,6 +11,7 @@ import { assertWithinBudget } from "../usage/budget";
 import type { AgentParams, UsageSummary } from "../../shared/types";
 import { executeAgentTool, type ToolRunContext } from "../mcp/tools";
 import { registerProxySession } from "../mcp/proxy";
+import { assertClaudeAvailable, getLimitState, LimitPausedError, recordHardLimit, recordRateLimit } from "../limits/guard";
 
 async function getToolRoundLimit(): Promise<number> {
   const row = await db.query.settings.findFirst({ where: eq(schema.settings.key, "orchestration.maxToolRounds") });
@@ -78,6 +79,8 @@ export class ModelCallError extends Error {
 export async function callModel(input: CallInput): Promise<CallResult> {
   const ctx = input.context ?? {};
   await assertWithinBudget(ctx);
+  // Subscription quota guard: refuses the call (cleanly) when a Claude window is about to run out.
+  await assertClaudeAvailable(input.providerId);
 
   const def = getProviderDef(input.providerId);
   const model = await getModel(input.providerId, input.modelId);
@@ -175,6 +178,7 @@ export async function callModel(input: CallInput): Promise<CallResult> {
         .insert(schema.settings)
         .values({ key: "claude-code.rateLimit", value, updatedAt: now() })
         .onConflictDoUpdate({ target: schema.settings.key, set: { value, updatedAt: now() } });
+      await recordRateLimit(input.providerId, usage.rateLimit);
     }
   } catch (err) {
     log.error("Failed to record usage", err);
@@ -200,6 +204,12 @@ export async function callModel(input: CallInput): Promise<CallResult> {
   if (error) {
     const message = error instanceof Error ? error.message : String(error);
     const code = error instanceof ProviderError ? error.code : "unknown";
+    // Subscription quota refused the call: record it and pause cleanly instead of failing.
+    if (def.kind === "claude_cli" && code === "rate_limit") {
+      await recordHardLimit(input.providerId, message).catch(() => undefined);
+      const state = await getLimitState(input.providerId);
+      throw new LimitPausedError(`Limite Claude atteinte : ${message}`, state.resumeAt, text);
+    }
     throw new ModelCallError(message, text, summary, code);
   }
   return { text, usage: summary, aborted: false };

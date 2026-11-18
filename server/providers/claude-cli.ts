@@ -184,7 +184,9 @@ export const claudeCliAdapter: ProviderAdapter = {
         sawResult = true;
         const r = parsed.event;
         if (r.is_error) {
-          finish(new ProviderError(r.result || "Claude Code reported an error.", r.api_error_status === 429 ? "rate_limit" : "unknown"));
+          const msg = r.result || "Claude Code reported an error.";
+          const quota = r.api_error_status === 429 || /usage limit|limit reached|rate.?limit|hit your limit/i.test(msg);
+          finish(new ProviderError(msg, quota ? "rate_limit" : "unknown"));
           return;
         }
         const usage: ProviderUsage = {

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Wrench, ShieldAlert, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ToolApprovalRequest, ToolCallRecord } from "@shared/types";
@@ -61,9 +62,35 @@ export function ToolCallList({ calls }: { calls: ToolCallRecord[] }) {
   );
 }
 
+/** Approvals currently displayed by a page's live stream (the global panel skips those). */
+const shownByPage = new Set<string>();
+
+/**
+ * Floating panel for approvals requested by runs without a live page (e.g. work
+ * resumed in the background after a quota reset). Polls the server.
+ */
+export function GlobalApprovals() {
+  const { data } = useQuery({ queryKey: ["tool-approvals"], queryFn: () => api.get<ToolApprovalRequest[]>("/tool-approvals"), refetchInterval: 4000 });
+  const orphan = (data ?? []).filter((a) => !shownByPage.has(a.approvalId));
+  if (!orphan.length) return null;
+  return (
+    <div className="fixed bottom-4 right-4 z-40 w-[420px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface p-3 shadow-2xl">
+      <div className="mb-2 text-xs font-medium text-fg-muted">Autorisations en attente (travail en arrière-plan)</div>
+      <ApprovalCards approvals={orphan} global />
+    </div>
+  );
+}
+
 /** Cards asking the user to approve or refuse sensitive tool calls requested by agents. */
-export function ApprovalCards({ approvals }: { approvals: ToolApprovalRequest[] }) {
+export function ApprovalCards({ approvals, global }: { approvals: ToolApprovalRequest[]; global?: boolean }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const ids = approvals.map((a) => a.approvalId).join(",");
+  useEffect(() => {
+    if (global) return;
+    const list = ids ? ids.split(",") : [];
+    list.forEach((id) => shownByPage.add(id));
+    return () => list.forEach((id) => shownByPage.delete(id));
+  }, [ids, global]);
   if (!approvals.length) return null;
   const decide = async (id: string, approve: boolean) => {
     setBusy(id);

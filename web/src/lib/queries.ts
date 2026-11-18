@@ -1,6 +1,6 @@
 import { useQuery, QueryClient } from "@tanstack/react-query";
 import { api } from "./api";
-import type { ModelDTO, ProviderDTO } from "@shared/types";
+import type { LimitState, ModelDTO, PausedWorkDTO, ProviderDTO } from "@shared/types";
 import type { Agent, WarRoomListItem } from "./types";
 
 export const queryClient = new QueryClient({
@@ -32,7 +32,17 @@ export const qk = {
   mcp: ["mcp"] as const,
   memories: (scope?: string, scopeId?: string) => ["memories", scope ?? "all", scopeId ?? ""] as const,
   dashboard: ["dashboard"] as const,
+  limits: ["limits"] as const,
+  paused: ["paused-work"] as const,
 };
+
+export function useLimitState() {
+  return useQuery({ queryKey: qk.limits, queryFn: () => api.get<LimitState>("/limits/status"), refetchInterval: 30_000 });
+}
+
+export function usePausedWork() {
+  return useQuery({ queryKey: qk.paused, queryFn: () => api.get<PausedWorkDTO[]>("/limits/paused"), refetchInterval: 30_000 });
+}
 
 export function useProviders() {
   return useQuery({ queryKey: qk.providers, queryFn: () => api.get<ProviderDTO[]>("/providers") });

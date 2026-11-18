@@ -14,6 +14,7 @@ import { Composer } from "../chat/Composer";
 import { MessageItem, useStickToBottom } from "../chat/MessageList";
 import { useRunStream } from "../chat/useRunStream";
 import { ApprovalCards } from "../chat/ToolCalls";
+import { useResumeParam } from "../chat/useResumeParam";
 import { STATUS_LABEL, type RoomDetail } from "./shared";
 
 const MODES: { value: CollectiveMode; label: string; icon: React.ReactNode; hint: string }[] = [
@@ -97,6 +98,10 @@ export function CollectiveTab({ detail }: { detail: RoomDetail }) {
   }, [conv.data?.conversation.id]);
 
   const scrollRef = useStickToBottom(stream.messages);
+  useResumeParam(stream.run, !!conv.data, () => {
+    void qc.invalidateQueries({ queryKey: qk.tasks({ warRoomId: room.id }) });
+    void qc.invalidateQueries({ queryKey: qk.conversation(convId) });
+  });
   const team = agents.filter((a) => a.role === "agent");
   const orch = agents.find((a) => a.role === "orchestrator");
   const byId = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents]);

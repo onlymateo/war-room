@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { Bot, Crown, MessageSquare, Search, Swords } from "lucide-react";
+import { Bot, Crown, MessageSquare, Search, Swords, Trash2 } from "lucide-react";
+import { useDeleteAgentDialog, useDeleteRoomDialog } from "../warrooms/deletion";
 import { useAgents, useModels, useWarRooms } from "@/lib/queries";
 import { fmtUsd } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,8 @@ export default function AgentsPage() {
   const [roomFilter, setRoomFilter] = useState("");
   const [role, setRole] = useState("");
   const [q, setQ] = useState("");
+  const deleteAgent = useDeleteAgentDialog();
+  const deleteRoom = useDeleteRoomDialog();
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -98,7 +101,7 @@ export default function AgentsPage() {
                 <th className="px-3 py-2 text-right font-medium">Skills</th>
                 <th className="px-3 py-2 text-right font-medium">MCP</th>
                 <th className="px-3 py-2 text-right font-medium">Budget</th>
-                <th className="w-12" />
+                <th className="w-20" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -153,15 +156,39 @@ export default function AgentsPage() {
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-fg-muted">{a.budgetUsd != null ? fmtUsd(a.budgetUsd) : "—"}</td>
                     <td className="px-2 py-2.5">
-                      {chatHref ? (
-                        <Tooltip content="Discuter avec cet agent">
-                          <Link to={chatHref}>
-                            <Button variant="ghost" size="icon-sm" aria-label={`Discuter avec ${a.name}`}>
-                              <MessageSquare />
+                      <div className="flex items-center justify-end gap-0.5">
+                        {chatHref ? (
+                          <Tooltip content="Discuter avec cet agent">
+                            <Link to={chatHref}>
+                              <Button variant="ghost" size="icon-sm" aria-label={`Discuter avec ${a.name}`}>
+                                <MessageSquare />
+                              </Button>
+                            </Link>
+                          </Tooltip>
+                        ) : null}
+                        {a.role === "orchestrator" ? (
+                          <Tooltip content="Un orchestrateur se supprime avec sa War Room : supprimer toute la War Room">
+                            <Button
+                              variant="danger-ghost"
+                              size="icon-sm"
+                              aria-label={`Supprimer la War Room de ${a.name}`}
+                              disabled={!a.warRoomId}
+                              onClick={() => {
+                                const room = rooms.data?.find((r) => r.id === a.warRoomId);
+                                if (room) deleteRoom.ask({ id: room.id, name: room.name, agentCount: room.agentCount, openTasks: room.openTasks });
+                              }}
+                            >
+                              <Trash2 />
                             </Button>
-                          </Link>
-                        </Tooltip>
-                      ) : null}
+                          </Tooltip>
+                        ) : (
+                          <Tooltip content="Supprimer cet agent">
+                            <Button variant="danger-ghost" size="icon-sm" aria-label={`Supprimer ${a.name}`} onClick={() => deleteAgent.ask({ id: a.id, name: a.name, warRoomId: a.warRoomId })}>
+                              <Trash2 />
+                            </Button>
+                          </Tooltip>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -170,6 +197,8 @@ export default function AgentsPage() {
           </table>
         </Card>
       )}
+      {deleteAgent.dialog}
+      {deleteRoom.dialog}
     </Page>
   );
 }

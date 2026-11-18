@@ -256,6 +256,58 @@ export const memories = sqliteTable("memories", {
   updatedAt: ts("updated_at").notNull(),
 });
 
+/**
+ * Subscription quota observations (Claude Code `rate_limit_event`), one row per
+ * window per call. Used to predict when a window will run out.
+ */
+export const limitSnapshots = sqliteTable(
+  "limit_snapshots",
+  {
+    id: text("id").primaryKey(),
+    providerId: text("provider_id").notNull(),
+    window: text("window").notNull(), // five_hour | seven_day
+    utilization: real("utilization"), // 0..1, null if not reported
+    resetsAt: ts("resets_at"), // ms
+    status: text("status"), // allowed | allowed_warning | rejected | ...
+    observedAt: ts("observed_at").notNull(),
+  },
+  (t) => [index("limit_snapshots_idx").on(t.providerId, t.window, t.observedAt)],
+);
+
+/** Work paused by the limit guard, to resume after the quota resets. */
+export const pausedWork = sqliteTable("paused_work", {
+  id: text("id").primaryKey(),
+  kind: text("kind").$type<"chat" | "collective">().notNull(),
+  warRoomId: text("war_room_id"),
+  conversationId: text("conversation_id").notNull(),
+  agentId: text("agent_id"),
+  title: text("title").notNull(),
+  payload: json<Record<string, unknown>>("payload").notNull(),
+  reason: text("reason").notNull(),
+  resetsAt: ts("resets_at"),
+  status: text("status").$type<"paused" | "ready" | "resumed" | "cancelled">().notNull(),
+  createdAt: ts("created_at").notNull(),
+  updatedAt: ts("updated_at").notNull(),
+});
+
+/** Progress reports of a War Room (daily, or generated on demand). */
+export const roomReports = sqliteTable(
+  "room_reports",
+  {
+    id: text("id").primaryKey(),
+    warRoomId: text("war_room_id").notNull(),
+    kind: text("kind").$type<"daily" | "manual">().notNull(),
+    /** Local calendar day the daily report belongs to (YYYY-MM-DD). */
+    day: text("day").notNull(),
+    periodStart: ts("period_start").notNull(),
+    periodEnd: ts("period_end").notNull(),
+    markdown: text("markdown").notNull(),
+    stats: json<Record<string, number>>("stats").notNull(),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [index("room_reports_idx").on(t.warRoomId, t.day)],
+);
+
 export const mcpServers = sqliteTable("mcp_servers", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

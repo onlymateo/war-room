@@ -23,6 +23,16 @@
 - **Skills** : inventaire réel (Skills Claude Code de l'utilisateur, marketplace de plugins, Skills WAR ROOM), installation dans WAR ROOM (confirmation requise pour une source non vérifiée), création de Skills personnalisés, injection dans le prompt des agents, recommandations comparées à l'inventaire.
 - **MCP** : ajout de serveurs STDIO et HTTP, connexion et déconnexion, outils, ressources, prompts, journaux, test manuel des outils, outils sensibles, attribution aux agents.
 - **Appels d'outils MCP par les agents** : boucle d'outils pour l'API Anthropic et les API compatibles OpenAI ; pour Claude Code, WAR ROOM expose les outils de l'agent via un serveur MCP local temporaire, si bien que tous les appels passent par les mêmes contrôles. Permissions vérifiées à chaque appel, accord humain pour les outils sensibles (refus automatique après 10 min), résultats tronqués à 20 000 caractères, plafonds de tours et d'appels, appels affichés dans les messages et le journal. Chaque agent peut être limité à une partie des outils d'un serveur (cases à cocher avec coût estimé en tokens) ; lors d'une nouvelle attribution, seuls les outils non sensibles sont cochés par défaut.
+- **Gardien des limites Claude (abonnement)** :
+  - mesures des fenêtres 5 h et hebdomadaire renvoyées par Claude Code à chaque appel, historisées ;
+  - rythme de consommation et heure prévue d'atteinte du seuil ;
+  - bandeau d'alerte et jauges dans la barre latérale ;
+  - pause propre au seuil (95 % par défaut) ou au refus de Claude : réponse de chat gardée en attente, missions d'agents, routage ou synthèse restants mis de côté ;
+  - détection de la réinitialisation chaque minute, puis proposition de reprise (sur place avec streaming, ou tout en arrière-plan) ;
+  - rapport des limites : état, travail en pause, consommation par War Room et par agent dans la fenêtre.
+  Limite : les mesures ne sont mises à jour qu'à chaque appel fait par WAR ROOM (aucun moyen de les lire sans appel).
+- **Récapitulatif de contexte d'une War Room** : construit à partir des données (gratuit, disponible même quand Claude est en pause) ou rédigé par l'IA de votre choix ; copiable et téléchargeable en Markdown.
+- **Rapports d'avancement quotidiens** : un par War Room active chaque jour (heure réglable, rattrapage si l'application était éteinte), construits sans appel à une IA, plus génération à la demande.
 - **Amélioration des prompts** : bouton « Améliorer » dans chaque conversation ; réécriture par un modèle économique avec un court extrait de contexte, coût affiché, validation avant envoi.
 - **Projets** : liste, détail, vues Synthèse, Kanban, Liste et Timeline, décisions, rattachement de War Rooms.
 - **Fichiers et mémoire** : upload, aperçu, téléchargement, tags, extraction de texte (texte, code, CSV, JSON, PDF, DOCX), mémoire structurée par portée.

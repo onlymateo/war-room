@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { qk, useSettings, useSystemStatus } from "@/lib/queries";
 import { Card, CardHeader, Kbd, Page, PageHeader, Skeleton } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/form";
+import { Field, Input, Switch } from "@/components/ui/form";
 import { ModelPicker } from "@/components/domain";
 import { useTheme } from "@/components/layout/AppShell";
 
@@ -97,6 +97,38 @@ function SettingInput({
   );
 }
 
+function BoolSetting({ settingKey, value, label }: { settingKey: string; value: boolean; label: string }) {
+  const save = useSaveSetting();
+  return <Switch checked={value} onChange={(v) => save.mutate({ key: settingKey, value: v })} label={label} />;
+}
+
+/** Stored as a 0..1 fraction, edited as a percentage. */
+function PercentSetting({ settingKey, value }: { settingKey: string; value: number }) {
+  const save = useSaveSetting();
+  const initial = String(Math.round(value * 100));
+  const [draft, setDraft] = useState(initial);
+  useEffect(() => setDraft(initial), [initial]);
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const n = Number(draft);
+        if (!Number.isFinite(n) || n < 1 || n > 100) return toast.error("Entre 1 et 100");
+        save.mutate({ key: settingKey, value: n / 100 });
+      }}
+    >
+      <div className="relative flex-1">
+        <Input type="number" min={1} max={100} value={draft} onChange={(e) => setDraft(e.target.value)} />
+        <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-fg-subtle">%</span>
+      </div>
+      <Button type="submit" size="sm" variant={draft !== initial ? "primary" : "secondary"} disabled={draft === initial} loading={save.isPending}>
+        <Save /> Enregistrer
+      </Button>
+    </form>
+  );
+}
+
 function ModelSetting({ settingKey, value }: { settingKey: string; value: ModelRef }) {
   const save = useSaveSetting();
   return (
@@ -146,6 +178,36 @@ export default function SettingsPage() {
                 description="Au-delà, tout appel facturé est bloqué jusqu'au mois suivant. Laisser vide pour aucune limite. Les budgets par War Room, agent et projet se règlent dans leurs paramètres."
               >
                 <SettingInput settingKey="budget.monthlyUsd" value={s["budget.monthlyUsd"]} type="number" nullable min={0} placeholder="Aucune limite" suffix="USD" />
+              </Row>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Limites de l'abonnement Claude"
+              description="Le gardien surveille les fenêtres 5 h et hebdomadaire rapportées par Claude Code, et met le travail en pause proprement avant la coupure."
+            />
+            <div className="divide-y divide-border">
+              <Row title="Gardien des limites" description="Désactivé, les appels continuent jusqu'au refus de Claude (le travail est alors quand même mis en pause).">
+                <BoolSetting settingKey="limits.guardEnabled" value={(s["limits.guardEnabled"] as boolean | undefined) ?? true} label="Activé" />
+              </Row>
+              <Row title="Seuil d'alerte" description="Bandeau d'avertissement au-delà de ce niveau, ou quand le rythme actuel mène au seuil de pause dans l'heure.">
+                <PercentSetting settingKey="limits.warnAt" value={(s["limits.warnAt"] as number | undefined) ?? 0.8} />
+              </Row>
+              <Row title="Seuil de pause" description="Au-delà, les nouveaux appels Claude sont retenus et le travail en cours est mis en pause jusqu'à la réinitialisation.">
+                <PercentSetting settingKey="limits.pauseAt" value={(s["limits.pauseAt"] as number | undefined) ?? 0.95} />
+              </Row>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title="Rapports d'avancement" description="Un rapport par War Room active, chaque jour, construit à partir des données (aucun appel à une IA)." />
+            <div className="divide-y divide-border">
+              <Row title="Rapport quotidien">
+                <BoolSetting settingKey="reports.dailyEnabled" value={(s["reports.dailyEnabled"] as boolean | undefined) ?? true} label="Activé" />
+              </Row>
+              <Row title="Heure du rapport" description="Si WAR ROOM était éteint à cette heure, le rapport est créé au prochain démarrage.">
+                <SettingInput settingKey="reports.dailyHour" value={s["reports.dailyHour"] ?? 8} type="number" min={0} suffix="h" />
               </Row>
             </div>
           </Card>

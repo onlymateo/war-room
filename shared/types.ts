@@ -82,6 +82,59 @@ export interface MessageMeta {
   usage?: UsageSummary;
   /** MCP tool calls made while producing this message. */
   toolCalls?: ToolCallRecord[];
+  /** Reply paused by the limit guard (subscription quota). */
+  paused?: { pausedWorkId?: string; resetsAt: number | null; reason: string };
+}
+
+export type LimitLevel = "unknown" | "ok" | "warning" | "critical" | "exhausted";
+
+export interface LimitWindowState {
+  key: "five_hour" | "seven_day";
+  label: string;
+  /** 0..1 as last reported by Claude Code; null if never observed in this window. */
+  utilization: number | null;
+  resetsAt: number | null;
+  status: string | null;
+  observedAt: number | null;
+  /** The window's reset time has passed since the last observation. */
+  isReset: boolean;
+  /** Consumption rate over the recent observations, in utilization points per hour (0..1 scale). */
+  ratePerHour: number | null;
+  /** Predicted time when utilization reaches the pause threshold / 100 %, at the current rate. */
+  etaPauseAt: number | null;
+  etaExhaustAt: number | null;
+  willHitBeforeReset: boolean;
+  level: LimitLevel;
+}
+
+export interface LimitState {
+  providerId: string;
+  enabled: boolean;
+  warnAt: number;
+  pauseAt: number;
+  windows: LimitWindowState[];
+  level: LimitLevel;
+  shouldPause: boolean;
+  pauseReason: string | null;
+  /** When the guard will allow calls again (reset of the blocking window). */
+  resumeAt: number | null;
+  pausedCount: number;
+  readyCount: number;
+}
+
+export interface PausedWorkDTO {
+  id: string;
+  kind: "chat" | "collective";
+  warRoomId: string | null;
+  warRoomName: string | null;
+  conversationId: string;
+  agentId: string | null;
+  title: string;
+  reason: string;
+  resetsAt: number | null;
+  status: "paused" | "ready" | "resumed" | "cancelled";
+  href: string;
+  createdAt: number;
 }
 
 export interface ToolCallRecord {
