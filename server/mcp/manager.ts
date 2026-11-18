@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "../db/client";
 import { decryptSecret } from "../lib/crypto";
 import { redact } from "../lib/logger";
+import { scrubAllSecrets } from "../secrets/service";
 
 /**
  * Connects to MCP servers with the official SDK and keeps the live clients in
@@ -54,8 +55,10 @@ export function statusOf(id: string) {
   };
 }
 
-export function logsOf(id: string) {
-  return live.get(id)?.logs ?? [];
+/** Server logs for the UI, with any War Room secret value masked (a server may echo what it received). */
+export async function logsOf(id: string) {
+  const logs = live.get(id)?.logs ?? [];
+  return Promise.all(logs.map(async (l) => ({ ...l, text: await scrubAllSecrets(l.text) })));
 }
 
 export async function connect(row: Row) {

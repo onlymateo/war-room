@@ -5,6 +5,7 @@ import { logActivity } from "../activity/log";
 import { callTool, McpPermissionError, statusOf } from "./manager";
 import { requestApproval } from "./approvals";
 import type { RunEvent, ToolCallRecord } from "../../shared/types";
+import { findSecretRefs, markSecretsUsed, redactSecrets, substituteSecrets, type RunSecret } from "../secrets/service";
 
 /**
  * Agent-facing tool gateway. Every MCP tool call made by an agent, whatever the
@@ -38,6 +39,10 @@ export interface ToolRunContext {
   signal?: AbortSignal;
   /** Hard cap on tool calls for one reply. */
   maxCalls: number;
+  /** Secrets this agent may reference as {{secret:NAME}} (values never shown to the model). */
+  secrets?: RunSecret[];
+  /** Every secret of the room, used to scrub results and errors. */
+  redact?: RunSecret[];
 }
 
 export const MAX_TOOL_RESULT_CHARS = 20_000;
@@ -121,13 +126,31 @@ export async function executeAgentTool(ctx: ToolRunContext, name: string, args: 
   if (ctx.calls.length >= ctx.maxCalls) {
     return { text: `Tool call limit reached for this reply (${ctx.maxCalls}). Answer with what you have.`, isError: true };
   }
+  // Secrets referenced as {{secret:NAME}}: check the agent may send each one to this server.
+  const refs = [...findSecretRefs(args)];
+  const usable = ctx.secrets ?? [];
+  const used = usable.filter((s) => refs.includes(s.name));
+  const unknown = refs.filter((r) => !usable.some((s) => s.name === r));
+  const forbiddenHere = used.filter((s) => s.serverIds.length && !s.serverIds.includes(tool.serverId));
+  if (unknown.length || forbiddenHere.length) {
+    const reason = unknown.length
+      ? `Unknown or unauthorized secret(s): ${unknown.join(", ")}. Use only the secrets listed in your instructions.`
+      : `Secret(s) ${forbiddenHere.map((s) => s.name).join(", ")} may not be sent to ${tool.serverName}.`;
+    ctx.calls.push({ id: newId("tc"), serverId: tool.serverId, serverName: tool.serverName, tool: tool.tool, args, status: "denied", resultPreview: reason, startedAt: now(), durationMs: 0 });
+    ctx.emit({ type: "tool_call", messageId: ctx.messageId, call: { ...ctx.calls[ctx.calls.length - 1] } });
+    return { text: reason, isError: true };
+  }
+  const needsApproval = tool.sensitive || used.some((s) => s.requireApproval);
+  const scrub = (text: string) => redactSecrets(text, ctx.redact ?? usable);
+
   const record: ToolCallRecord = {
     id: newId("tc"),
     serverId: tool.serverId,
     serverName: tool.serverName,
     tool: tool.tool,
+    // Stored and displayed with the placeholders, never with the values.
     args,
-    status: tool.sensitive ? "awaiting_approval" : "running",
+    status: needsApproval ? "awaiting_approval" : "running",
     startedAt: now(),
   };
   ctx.calls.push(record);
@@ -137,7 +160,7 @@ export async function executeAgentTool(ctx: ToolRunContext, name: string, args: 
   };
   update({});
 
-  if (tool.sensitive) {
+  if (needsApproval) {
     const approved = await requestApproval(
       { messageId: ctx.messageId, agentId: ctx.agentId, agentName: ctx.agentName, serverName: tool.serverName, tool: tool.tool, args },
       ctx.signal,
@@ -156,18 +179,22 @@ export async function executeAgentTool(ctx: ToolRunContext, name: string, args: 
   }
 
   try {
-    const result = await callTool({ serverId: tool.serverId, tool: tool.tool, args, agentId: ctx.agentId, confirmed: tool.sensitive });
-    const out = mcpResultToText(result);
+    // Values are inserted only here, in the server process, for the actual call.
+    const realArgs = used.length ? substituteSecrets(args, used) : args;
+    const result = await callTool({ serverId: tool.serverId, tool: tool.tool, args: realArgs, agentId: ctx.agentId, confirmed: needsApproval });
+    const raw = mcpResultToText(result);
+    const out = { text: scrub(raw.text), isError: raw.isError };
     update({ status: out.isError ? "error" : "done", resultPreview: out.text.slice(0, 2000), durationMs: now() - record.startedAt });
+    if (used.length && ctx.warRoomId) await markSecretsUsed(ctx.warRoomId, used.map((s) => s.name));
     await logActivity({
       type: out.isError ? "tool_error" : "tool_call",
-      summary: `${ctx.agentName}: ${tool.serverName} › ${tool.tool}`,
+      summary: `${ctx.agentName}: ${tool.serverName} › ${tool.tool}${used.length ? ` (clé${used.length > 1 ? "s" : ""} : ${used.map((s) => s.name).join(", ")})` : ""}`,
       warRoomId: ctx.warRoomId,
       agentId: ctx.agentId,
     });
     return out;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = scrub(err instanceof Error ? err.message : String(err));
     update({ status: err instanceof McpPermissionError ? "denied" : "error", resultPreview: message, durationMs: now() - record.startedAt });
     return { text: `Tool error: ${message}`, isError: true };
   }

@@ -6,3 +6,7 @@ data/
 .env.*
 !.env.example
 .DS_Store
+
+# Claude Code local configuration
+.claude/
+CLAUDE.local.md

@@ -31,6 +31,7 @@
   - détection de la réinitialisation chaque minute, puis proposition de reprise (sur place avec streaming, ou tout en arrière-plan) ;
   - rapport des limites : état, travail en pause, consommation par War Room et par agent dans la fenêtre.
   Limite : les mesures ne sont mises à jour qu'à chaque appel fait par WAR ROOM (aucun moyen de les lire sans appel).
+- **Clés secrètes par War Room** (bouton « Clés ») : valeurs chiffrées, jamais renvoyées au navigateur ni montrées aux modèles. Les agents écrivent `{{secret:NOM}}` dans les arguments d'un outil MCP ; WAR ROOM insère la valeur à l'exécution et masque la valeur (en clair, URL, base64, JSON) dans les résultats, erreurs et journaux MCP. Restrictions par agent et par serveur, accord optionnel avant chaque utilisation, compteur d'usage. Limite : une clé envoyée à un outil part là où cet outil l'envoie.
 - **Récapitulatif de contexte d'une War Room** : construit à partir des données (gratuit, disponible même quand Claude est en pause) ou rédigé par l'IA de votre choix ; copiable et téléchargeable en Markdown.
 - **Rapports d'avancement quotidiens** : un par War Room active chaque jour (heure réglable, rattrapage si l'application était éteinte), construits sans appel à une IA, plus génération à la demande.
 - **Amélioration des prompts** : bouton « Améliorer » dans chaque conversation ; réécriture par un modèle économique avec un court extrait de contexte, coût affiché, validation avant envoi.

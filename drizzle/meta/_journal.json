@@ -29,6 +29,13 @@
       "when": 1794998083501,
       "tag": "0003_room_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794999108901,
+      "tag": "0004_room_secrets",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import { newId, now } from "../lib/ids";
 import { logActivity } from "../activity/log";
 import { getModel } from "../providers/registry";
 import { sendChatMessage, toMessageDTO } from "../chat/service";
+import { invalidateSecretCache } from "../secrets/service";
 import { agentChatSetup, decidePlan, runCollective } from "../orchestration/engine";
 import { analyzeBrief, applyAnalysis } from "./analysis";
 import { warRoomSpend, agentSpend } from "../usage/budget";
@@ -218,6 +219,8 @@ warRoomRoutes.delete("/warrooms/:id", async (c) => {
   await db.delete(schema.tasks).where(eq(schema.tasks.warRoomId, id));
   await db.delete(schema.activity).where(eq(schema.activity.warRoomId, id));
   await db.delete(schema.roomReports).where(eq(schema.roomReports.warRoomId, id));
+  await db.delete(schema.roomSecrets).where(eq(schema.roomSecrets.warRoomId, id));
+  invalidateSecretCache();
   await db.update(schema.pausedWork).set({ status: "cancelled" }).where(eq(schema.pausedWork.warRoomId, id));
   await db.update(schema.files).set({ warRoomId: null }).where(eq(schema.files.warRoomId, id));
   // Usage events are kept (spend history stays truthful) but detached.

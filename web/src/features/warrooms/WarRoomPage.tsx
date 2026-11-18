@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import { ArrowLeft, MessageSquare, Network, Bot, ListTodo, Sparkles, Activity, BarChart3, Settings2, Crown, Trash2, FileText, CalendarClock } from "lucide-react";
+import { ArrowLeft, MessageSquare, Network, Bot, ListTodo, Sparkles, Activity, BarChart3, Settings2, Crown, Trash2, FileText, CalendarClock, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDeleteRoomDialog } from "./deletion";
 import { useModels } from "@/lib/queries";
@@ -14,6 +14,7 @@ import { AnalysisTab } from "./AnalysisTab";
 import { ActivityTab, AgentsTab, RoomSettingsTab, RoomUsageTab, TasksTab } from "./RoomTabs";
 import { ReportsTab } from "./ReportsTab";
 import { RecapDialog } from "./RecapDialog";
+import { SecretsDialog } from "./SecretsDialog";
 
 export default function WarRoomPage() {
   const { id = "" } = useParams();
@@ -24,6 +25,7 @@ export default function WarRoomPage() {
   const navigate = useNavigate();
   const deleteRoom = useDeleteRoomDialog(() => navigate("/warrooms"));
   const [recapOpen, setRecapOpen] = useState(false);
+  const [secretsOpen, setSecretsOpen] = useState(false);
 
   // ?recap=1 opens the context recap (link from the limit report).
   useEffect(() => {
@@ -91,6 +93,11 @@ export default function WarRoomPage() {
                 </Badge>
               </span>
             </Tooltip>
+            <Tooltip content="Clés secrètes : utilisables par les agents dans leurs outils, jamais lisibles par eux">
+              <Button size="sm" variant="secondary" onClick={() => setSecretsOpen(true)}>
+                <KeyRound /> Clés
+              </Button>
+            </Tooltip>
             <Tooltip content="Récapitulatif du contexte, à transmettre à une autre IA">
               <Button size="sm" variant="secondary" onClick={() => setRecapOpen(true)}>
                 <FileText /> Récap contexte
@@ -133,6 +140,7 @@ export default function WarRoomPage() {
       </div>
       {deleteRoom.dialog}
       <RecapDialog warRoomId={room.id} open={recapOpen} onOpenChange={setRecapOpen} />
+      <SecretsDialog warRoomId={room.id} agents={agents} open={secretsOpen} onOpenChange={setSecretsOpen} />
     </div>
   );
 }

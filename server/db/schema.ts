@@ -308,6 +308,34 @@ export const roomReports = sqliteTable(
   (t) => [index("room_reports_idx").on(t.warRoomId, t.day)],
 );
 
+/**
+ * Secrets of a War Room. The value is encrypted at rest and is never sent to a
+ * model nor back to the browser: agents only see `{{secret:NAME}}` references,
+ * which WAR ROOM replaces inside tool-call arguments at execution time.
+ */
+export const roomSecrets = sqliteTable(
+  "room_secrets",
+  {
+    id: text("id").primaryKey(),
+    warRoomId: text("war_room_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    encryptedValue: text("encrypted_value").notNull(),
+    hint: text("hint").notNull(),
+    /** Agents allowed to use it; empty = every agent of the room. */
+    agentIds: json<string[]>("agent_ids").notNull().default([]),
+    /** MCP servers it may be sent to; empty = any server the agent can use. */
+    serverIds: json<string[]>("server_ids").notNull().default([]),
+    /** Ask the user before every tool call that uses it. */
+    requireApproval: integer("require_approval", { mode: "boolean" }).notNull().default(false),
+    lastUsedAt: ts("last_used_at"),
+    useCount: integer("use_count").notNull().default(0),
+    createdAt: ts("created_at").notNull(),
+    updatedAt: ts("updated_at").notNull(),
+  },
+  (t) => [index("room_secrets_idx").on(t.warRoomId, t.name)],
+);
+
 export const mcpServers = sqliteTable("mcp_servers", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

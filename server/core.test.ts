@@ -10,6 +10,7 @@ import { adjustTier, pickModelFromList } from "./usage/optimizer";
 import { matchSkill, parseFrontMatter, type SkillInfo } from "./skills/inventory";
 import { isToolAllowed } from "./mcp/tools";
 import { computeWindow, parseRateLimitInfo } from "./limits/guard";
+import { findSecretRefs, redactSecrets, secretsPromptSection, substituteSecrets } from "./secrets/service";
 import type { schema } from "./db/client";
 
 const claudePrice = { inputPrice: 4, outputPrice: 20, cacheReadPrice: 0.2, cacheWritePrice: 5 };
@@ -263,6 +264,41 @@ describe("Claude limit guard", () => {
       { utilization: 0.1, resetsAt: reset, status: "allowed", observedAt: t0 + 0.1 * H },
     ];
     expect(computeWindow("five_hour", "5 h", snaps, t0 + 0.1 * H, 0.8, 0.95, 90 * 60_000).ratePerHour).toBeNull();
+  });
+});
+
+describe("War Room secrets", () => {
+  const secret = { name: "API_KEY", description: "", value: "s3cr3t-Value/42+x", requireApproval: false, serverIds: [] };
+
+  it("finds references anywhere in tool arguments", () => {
+    const refs = findSecretRefs({ headers: { "x-api-key": "{{secret:API_KEY}}" }, list: ["a", "{{ secret:other_one }}"], n: 1 });
+    expect([...refs].sort()).toEqual(["API_KEY", "OTHER_ONE"]);
+  });
+
+  it("substitutes values only for the actual call, recursively", () => {
+    const args = { headers: { auth: "Bearer {{secret:API_KEY}}" }, list: ["{{secret:API_KEY}}"], keep: "{{secret:UNKNOWN}}" };
+    const out = substituteSecrets(args, [secret]);
+    expect(out).toEqual({ headers: { auth: "Bearer s3cr3t-Value/42+x" }, list: ["s3cr3t-Value/42+x"], keep: "{{secret:UNKNOWN}}" });
+    // The original arguments (stored and displayed) still hold the placeholder.
+    expect(args.headers.auth).toBe("Bearer {{secret:API_KEY}}");
+  });
+
+  it("masks raw, URL-encoded, base64 and JSON-escaped values in results", () => {
+    const text = [
+      "raw s3cr3t-Value/42+x",
+      `url ${encodeURIComponent("s3cr3t-Value/42+x")}`,
+      `b64 ${Buffer.from("s3cr3t-Value/42+x").toString("base64")}`,
+    ].join("\n");
+    const out = redactSecrets(text, [secret]);
+    expect(out).not.toContain("s3cr3t");
+    expect(out).not.toContain(Buffer.from("s3cr3t-Value/42+x").toString("base64"));
+    expect(out.match(/\{\{secret:API_KEY\}\}/g)).toHaveLength(3);
+  });
+
+  it("lists names and descriptions only in the prompt", () => {
+    const section = secretsPromptSection([{ ...secret, description: "Clé Open Cloud" }]);
+    expect(section).toContain("{{secret:API_KEY}} — Clé Open Cloud");
+    expect(section).not.toContain(secret.value);
   });
 });
 

@@ -122,7 +122,7 @@ mcpRoutes.post("/mcp/:id/disconnect", async (c) => {
   return c.json(publicView(row!));
 });
 
-mcpRoutes.get("/mcp/:id/logs", (c) => c.json(logsOf(c.req.param("id"))));
+mcpRoutes.get("/mcp/:id/logs", async (c) => c.json(await logsOf(c.req.param("id"))));
 
 /** Manual tool run from the UI by the user (a human is present, so this counts as confirmed). */
 mcpRoutes.post("/mcp/:id/tools/:tool", async (c) => {
