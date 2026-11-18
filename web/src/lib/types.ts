@@ -18,6 +18,8 @@ export interface Agent {
   params: AgentParams;
   skills: string[];
   mcpServers: string[];
+  /** Per-server tool allowlist; a server without an entry exposes all its tools. */
+  mcpTools: Record<string, string[]>;
   memory: string;
   tokenLimit: number | null;
   budgetUsd: number | null;

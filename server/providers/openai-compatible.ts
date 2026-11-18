@@ -63,41 +63,88 @@ export function createOpenAICompatibleAdapter(def: ProviderDefinition): Provider
     async *stream(req: GenerateRequest, creds: ResolvedCredentials): AsyncIterable<StreamEvent> {
       const client = makeClient(def, creds);
       const maxField = def.maxTokensField ?? "max_tokens";
+      const messages = toOpenAIMessages(req.system, req.messages);
+      const tools: OpenAI.Chat.Completions.ChatCompletionTool[] | undefined = req.tools?.length
+        ? req.tools.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.inputSchema } }))
+        : undefined;
+      const maxRounds = tools && req.runTool ? (req.maxToolRounds ?? 8) : 0;
+      let anyText = false;
       try {
-        const stream = await client.chat.completions.create(
-          {
-            model: req.model,
-            messages: toOpenAIMessages(req.system, req.messages),
-            stream: true,
-            stream_options: { include_usage: true },
-            ...(req.params?.temperature !== undefined ? { temperature: req.params.temperature } : {}),
-            ...(req.params?.maxTokens ? { [maxField]: req.params.maxTokens } : {}),
-          },
-          { signal: req.signal },
-        );
-        let finish: string | null = null;
-        let modelUsed: string | undefined;
-        for await (const chunk of stream) {
-          modelUsed = chunk.model ?? modelUsed;
-          const choice = chunk.choices?.[0];
-          const delta = choice?.delta?.content;
-          if (delta) yield { type: "text", delta };
-          if (choice?.finish_reason) finish = choice.finish_reason;
-          if (chunk.usage) {
-            const u = chunk.usage as OpenAI.CompletionUsage & { cost?: number };
-            yield {
-              type: "usage",
-              usage: {
-                inputTokens: u.prompt_tokens ?? null,
-                outputTokens: u.completion_tokens ?? null,
-                cacheReadTokens: u.prompt_tokens_details?.cached_tokens ?? null,
-                cacheWriteTokens: null,
-                reportedCostUsd: typeof u.cost === "number" ? u.cost : null,
-              },
-            };
+        for (let round = 0; ; round++) {
+          const stream = await client.chat.completions.create(
+            {
+              model: req.model,
+              messages,
+              stream: true,
+              stream_options: { include_usage: true },
+              ...(tools ? { tools } : {}),
+              ...(req.params?.temperature !== undefined ? { temperature: req.params.temperature } : {}),
+              ...(req.params?.maxTokens ? { [maxField]: req.params.maxTokens } : {}),
+            },
+            { signal: req.signal },
+          );
+          let finish: string | null = null;
+          let modelUsed: string | undefined;
+          let text = "";
+          const calls: { id: string; name: string; args: string }[] = [];
+          for await (const chunk of stream) {
+            modelUsed = chunk.model ?? modelUsed;
+            const choice = chunk.choices?.[0];
+            const delta = choice?.delta?.content;
+            if (delta) {
+              if (anyText && !text) yield { type: "text", delta: "\n\n" };
+              text += delta;
+              anyText = true;
+              yield { type: "text", delta };
+            }
+            for (const tc of choice?.delta?.tool_calls ?? []) {
+              const slot = (calls[tc.index] ??= { id: "", name: "", args: "" });
+              if (tc.id) slot.id = tc.id;
+              if (tc.function?.name) slot.name += tc.function.name;
+              if (tc.function?.arguments) slot.args += tc.function.arguments;
+            }
+            if (choice?.finish_reason) finish = choice.finish_reason;
+            if (chunk.usage) {
+              const u = chunk.usage as OpenAI.CompletionUsage & { cost?: number };
+              yield {
+                type: "usage",
+                usage: {
+                  inputTokens: u.prompt_tokens ?? null,
+                  outputTokens: u.completion_tokens ?? null,
+                  cacheReadTokens: u.prompt_tokens_details?.cached_tokens ?? null,
+                  cacheWriteTokens: null,
+                  reportedCostUsd: typeof u.cost === "number" ? u.cost : null,
+                },
+              };
+            }
+          }
+          const pending = calls.filter((c) => c && c.name);
+          if (!pending.length || !req.runTool || finish === "length") {
+            yield { type: "done", stopReason: finish, modelUsed };
+            return;
+          }
+          if (round >= maxRounds) {
+            yield { type: "text", delta: "\n\n_[WAR ROOM : limite de tours d'outils atteinte pour cette réponse.]_" };
+            yield { type: "done", stopReason: "tool_round_limit", modelUsed };
+            return;
+          }
+          messages.push({
+            role: "assistant",
+            content: text || null,
+            tool_calls: pending.map((c, i) => ({ id: c.id || `call_${round}_${i}`, type: "function" as const, function: { name: c.name, arguments: c.args || "{}" } })),
+          });
+          for (const [i, c] of pending.entries()) {
+            let args: Record<string, unknown> = {};
+            let result: { text: string; isError: boolean };
+            try {
+              args = c.args ? JSON.parse(c.args) : {};
+              result = await req.runTool(c.name, args);
+            } catch {
+              result = { text: "Invalid JSON arguments for this tool call.", isError: true };
+            }
+            messages.push({ role: "tool", tool_call_id: c.id || `call_${round}_${i}`, content: result.isError ? `ERROR: ${result.text}` : result.text });
           }
         }
-        yield { type: "done", stopReason: finish, modelUsed };
       } catch (err) {
         throw mapError(def, err);
       }

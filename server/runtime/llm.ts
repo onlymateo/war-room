@@ -9,6 +9,13 @@ import { ProviderError } from "../providers/types";
 import { computeCost } from "../usage/cost";
 import { assertWithinBudget } from "../usage/budget";
 import type { AgentParams, UsageSummary } from "../../shared/types";
+import { executeAgentTool, type ToolRunContext } from "../mcp/tools";
+import { registerProxySession } from "../mcp/proxy";
+
+async function getToolRoundLimit(): Promise<number> {
+  const row = await db.query.settings.findFirst({ where: eq(schema.settings.key, "orchestration.maxToolRounds") });
+  return typeof row?.value === "number" ? row.value : 8;
+}
 
 export interface CallContext {
   conversationId?: string | null;
@@ -16,7 +23,7 @@ export interface CallContext {
   agentId?: string | null;
   warRoomId?: string | null;
   projectId?: string | null;
-  purpose?: "chat" | "routing" | "synthesis" | "analysis" | "summary" | "debate";
+  purpose?: "chat" | "routing" | "synthesis" | "analysis" | "summary" | "debate" | "prompt";
 }
 
 export interface CallInput {
@@ -28,6 +35,22 @@ export interface CallInput {
   signal?: AbortSignal;
   context?: CallContext;
   onDelta?: (text: string) => void;
+  /** MCP tools for this call (agent replies only). */
+  toolContext?: ToolRunContext | null;
+}
+
+/** Sum per-round usage (tool loops make several API calls for one reply). Unknown stays unknown. */
+export function addUsage(a: ProviderUsage | null, b: ProviderUsage): ProviderUsage {
+  if (!a) return { ...b };
+  const sum = (x?: number | null, y?: number | null) => (x == null && y == null ? null : (x ?? 0) + (y ?? 0));
+  return {
+    inputTokens: sum(a.inputTokens, b.inputTokens),
+    outputTokens: sum(a.outputTokens, b.outputTokens),
+    cacheReadTokens: sum(a.cacheReadTokens, b.cacheReadTokens),
+    cacheWriteTokens: sum(a.cacheWriteTokens, b.cacheWriteTokens),
+    reportedCostUsd: sum(a.reportedCostUsd, b.reportedCostUsd),
+    rateLimit: b.rateLimit ?? a.rateLimit ?? null,
+  };
 }
 
 export interface CallResult {
@@ -64,27 +87,54 @@ export async function callModel(input: CallInput): Promise<CallResult> {
   const started = now();
   let text = "";
   let usage: ProviderUsage | null = null;
+  let lastRound: ProviderUsage | null = null;
   let status: "ok" | "error" | "aborted" = "ok";
   let error: unknown = null;
 
+  // Tools: API providers run the loop in the adapter with our executor; the Claude Code
+  // CLI gets a one-off MCP proxy URL that routes back to the same executor.
+  const tc = input.toolContext && input.toolContext.tools.length ? input.toolContext : null;
+  const proxy = tc && def.kind === "claude_cli" ? registerProxySession(tc) : null;
+  const maxToolRounds = await getToolRoundLimit();
+
   try {
     for await (const ev of adapter.stream(
-      { model: input.modelId, system: input.system, messages: input.messages, params: input.params, signal: input.signal },
+      {
+        model: input.modelId,
+        system: input.system,
+        messages: input.messages,
+        params: input.params,
+        signal: input.signal,
+        ...(tc && !proxy
+          ? {
+              tools: tc.tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })),
+              runTool: (name: string, args: Record<string, unknown>) => executeAgentTool(tc, name, args),
+              maxToolRounds,
+            }
+          : {}),
+        ...(proxy ? { mcpProxyUrl: proxy.url } : {}),
+      },
       creds,
     )) {
       if (ev.type === "text") {
         text += ev.delta;
         input.onDelta?.(ev.delta);
       } else if (ev.type === "usage") {
-        usage = ev.usage;
+        usage = addUsage(usage, ev.usage);
+        lastRound = ev.usage;
       }
     }
   } catch (err) {
     error = err;
     status = err instanceof ProviderError && err.code === "aborted" ? "aborted" : "error";
+  } finally {
+    proxy?.dispose();
   }
 
   const cost = computeCost(def.costKind, usage, model ?? null, def.kind === "openai_compatible");
+  // Context size is that of the last round (the largest prompt), not the sum of rounds.
+  const lastContext = computeCost(def.costKind, lastRound, model ?? null, def.kind === "openai_compatible").contextTokens;
+  cost.contextTokens = lastContext;
   const summary: UsageSummary = {
     inputTokens: usage?.inputTokens ?? null,
     outputTokens: usage?.outputTokens ?? null,

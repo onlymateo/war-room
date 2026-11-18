@@ -8,7 +8,8 @@ import type { AgentPermissions } from "@shared/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Switch, Textarea } from "@/components/ui/form";
-import { Dialog, Tabs } from "@/components/ui/primitives";
+import { Badge, Dialog, Tabs } from "@/components/ui/primitives";
+import { ChevronRight } from "lucide-react";
 import { AGENT_COLORS, AGENT_ICONS, AgentAvatar, ModelPicker } from "@/components/domain";
 
 interface SkillLite {
@@ -22,6 +23,65 @@ interface McpLite {
   id: string;
   name: string;
   status: string;
+  tools: { name: string; description?: string; inputSchema?: unknown }[];
+  sensitiveTools: string[];
+}
+
+/** Rough size of one tool definition in the model's prompt (~4 characters per token). */
+function toolTokens(t: McpLite["tools"][number]) {
+  return Math.ceil(JSON.stringify({ name: t.name, description: t.description ?? "", input_schema: t.inputSchema ?? {} }).length / 4);
+}
+
+function McpToolPicker({ server, allowed, onChange }: { server: McpLite; allowed: string[] | undefined; onChange: (next: string[] | undefined) => void }) {
+  const [open, setOpen] = useState(false);
+  const all = server.tools.map((t) => t.name);
+  const selected = allowed ?? all;
+  const totalTokens = server.tools.filter((t) => selected.includes(t.name)).reduce((n, t) => n + toolTokens(t), 0);
+  const maxTokens = server.tools.reduce((n, t) => n + toolTokens(t), 0);
+  if (!server.tools.length) {
+    return <p className="pl-7 text-[11px] text-fg-subtle">Connectez le serveur pour choisir ses outils (tous seront exposés en attendant).</p>;
+  }
+  const readOnly = all.filter((n) => !server.sensitiveTools.includes(n));
+  return (
+    <div className="ml-7 rounded-md border border-border bg-surface-2/40">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs">
+        <ChevronRight className={cn("size-3 text-fg-subtle transition-transform", open && "rotate-90")} />
+        <span>
+          {selected.length}/{all.length} outils
+        </span>
+        <span className="ml-auto tabular-nums text-fg-subtle">
+          ~{totalTokens.toLocaleString("fr-FR")} tokens / appel{selected.length < all.length ? ` (au lieu de ~${maxTokens.toLocaleString("fr-FR")})` : ""}
+        </span>
+      </button>
+      {open ? (
+        <div className="border-t border-border p-2">
+          <div className="mb-1.5 flex flex-wrap gap-1.5">
+            <Button size="sm" variant="ghost" onClick={() => onChange(all)}>Tous</Button>
+            <Button size="sm" variant="ghost" onClick={() => onChange(readOnly)}>Non sensibles uniquement</Button>
+            <Button size="sm" variant="ghost" onClick={() => onChange([])}>Aucun</Button>
+          </div>
+          <div className="max-h-60 space-y-0.5 overflow-y-auto">
+            {server.tools.map((t) => (
+              <label key={t.name} className="flex cursor-pointer items-start gap-2 rounded px-1.5 py-1 text-xs hover:bg-surface-2">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(t.name)}
+                  onChange={(e) => onChange(e.target.checked ? [...selected, t.name] : selected.filter((x) => x !== t.name))}
+                  className="mt-0.5 accent-[var(--accent)]"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="font-mono">{t.name}</span>
+                  {server.sensitiveTools.includes(t.name) ? <Badge tone="warning" className="ml-1.5">sensible</Badge> : null}
+                  {t.description ? <span className="block truncate text-[11px] text-fg-subtle">{t.description}</span> : null}
+                </span>
+                <span className="shrink-0 tabular-nums text-[11px] text-fg-subtle">~{toolTokens(t)}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 const DEFAULT_PERMS: AgentPermissions = { readWarRoomContext: true, readFiles: true, useMcp: false, dispatchWithoutApproval: false };
@@ -64,6 +124,7 @@ export function AgentEditor({ warRoomId, agent, open, onOpenChange }: { warRoomI
         },
         skills: form.skills,
         mcpServers: form.mcpServers,
+        mcpTools: Object.fromEntries(Object.entries(form.mcpTools).filter(([id]) => form.mcpServers.includes(id))),
         memory: form.memory,
         tokenLimit: form.tokenLimit !== "" ? Number(form.tokenLimit) : null,
         budgetUsd: form.budgetUsd !== "" ? Number(form.budgetUsd) : null,
@@ -204,19 +265,40 @@ export function AgentEditor({ warRoomId, agent, open, onOpenChange }: { warRoomI
           </Field>
           <Field label="Serveurs MCP autorisés" hint="L'agent doit aussi avoir la permission « Utiliser MCP ». Les outils sensibles demandent toujours votre confirmation.">
             {(mcp.data ?? []).length ? (
-              <div className="space-y-1 rounded-md border border-border p-2">
-                {(mcp.data ?? []).map((s) => (
-                  <label key={s.id} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-[13px] hover:bg-surface-2">
-                    <input
-                      type="checkbox"
-                      checked={form.mcpServers.includes(s.id)}
-                      onChange={(e) => set("mcpServers", e.target.checked ? [...form.mcpServers, s.id] : form.mcpServers.filter((x) => x !== s.id))}
-                      className="accent-[var(--accent)]"
-                    />
-                    <span className="flex-1">{s.name}</span>
-                    <span className="text-[11px] text-fg-subtle">{s.status}</span>
-                  </label>
-                ))}
+              <div className="space-y-1.5 rounded-md border border-border p-2">
+                {(mcp.data ?? []).map((s) => {
+                  const checked = form.mcpServers.includes(s.id);
+                  return (
+                    <div key={s.id} className="space-y-1">
+                      <label className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-[13px] hover:bg-surface-2">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const on = e.target.checked;
+                            setForm((f) => {
+                              const mcpTools = { ...f.mcpTools };
+                              // New assignment: start from the non-sensitive tools only (smaller prompt, safer); adjust below.
+                              if (on && s.tools.length) mcpTools[s.id] = s.tools.map((t) => t.name).filter((n) => !s.sensitiveTools.includes(n));
+                              if (!on) delete mcpTools[s.id];
+                              return { ...f, mcpServers: on ? [...f.mcpServers, s.id] : f.mcpServers.filter((x) => x !== s.id), mcpTools };
+                            });
+                          }}
+                          className="accent-[var(--accent)]"
+                        />
+                        <span className="flex-1">{s.name}</span>
+                        <span className="text-[11px] text-fg-subtle">{s.status}</span>
+                      </label>
+                      {checked ? (
+                        <McpToolPicker
+                          server={s}
+                          allowed={form.mcpTools[s.id]}
+                          onChange={(next) => setForm((f) => ({ ...f, mcpTools: { ...f.mcpTools, [s.id]: next ?? [] } }))}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-xs text-fg-subtle">Aucun serveur MCP configuré.</p>
@@ -276,6 +358,7 @@ function toForm(agent: Agent | null) {
     maxTokens: agent?.params.maxTokens?.toString() ?? "",
     skills: agent?.skills ?? [],
     mcpServers: agent?.mcpServers ?? [],
+    mcpTools: (agent?.mcpTools ?? {}) as Record<string, string[]>,
     memory: agent?.memory ?? "",
     tokenLimit: agent?.tokenLimit?.toString() ?? "",
     budgetUsd: agent?.budgetUsd?.toString() ?? "",

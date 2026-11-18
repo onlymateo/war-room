@@ -6,8 +6,18 @@ import { encryptSecret } from "../lib/crypto";
 import { badRequest, body, notFound } from "../lib/http";
 import { newId, now } from "../lib/ids";
 import { callTool, connect, disconnect, logsOf, McpPermissionError, statusOf } from "./manager";
+import { listPendingApprovals, resolveApproval } from "./approvals";
 
 export const mcpRoutes = new Hono();
+
+/** Human approvals for sensitive tools requested by agents. */
+mcpRoutes.get("/tool-approvals", (c) => c.json(listPendingApprovals()));
+
+mcpRoutes.post("/tool-approvals/:id", async (c) => {
+  const { approve } = await body(c, z.object({ approve: z.boolean() }));
+  if (!resolveApproval(c.req.param("id"), approve)) badRequest("This request was already answered, cancelled or expired.");
+  return c.json({ ok: true });
+});
 
 const serverInput = z.object({
   name: z.string().min(1).max(100),

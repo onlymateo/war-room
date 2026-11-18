@@ -15,7 +15,12 @@ const STRATEGY_HINT: Record<CostStrategy, string> = {
 export function roster(agents: Agent[]) {
   return agents
     .filter((a) => a.role === "agent")
-    .map((a) => `- id=${a.id} | ${a.name} — ${a.function || a.description || "generalist"}${a.description && a.function ? ` (${a.description})` : ""}`)
+    .map(
+      (a) =>
+        `- id=${a.id} | ${a.name} — ${a.function || a.description || "generalist"}${a.description && a.function ? ` (${a.description})` : ""}${
+          a.permissions.useMcp && a.mcpServers.length ? " | can use external tools (MCP): route tasks needing those tools to this agent" : ""
+        }`,
+    )
     .join("\n");
 }
 

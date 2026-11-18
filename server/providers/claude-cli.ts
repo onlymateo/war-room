@@ -66,6 +66,7 @@ export function parseCliLine(line: string):
   | { kind: "result"; event: CliResultEvent }
   | { kind: "rate_limit"; info: Record<string, unknown> }
   | { kind: "init"; model: string | null; apiKeySource: string | null }
+  | { kind: "message_start" }
   | null {
   const trimmed = line.trim();
   if (!trimmed.startsWith("{")) return null;
@@ -80,6 +81,7 @@ export function parseCliLine(line: string):
     if (ev?.type === "content_block_delta" && ev.delta?.type === "text_delta" && typeof ev.delta.text === "string") {
       return { kind: "text", delta: ev.delta.text };
     }
+    if (ev?.type === "message_start") return { kind: "message_start" };
     return null;
   }
   if (obj.type === "result") return { kind: "result", event: obj as unknown as CliResultEvent };
@@ -130,6 +132,13 @@ export const claudeCliAdapter: ProviderAdapter = {
       args.push("--system-prompt-file", promptFile);
     }
     if (req.params?.effort) args.push("--effort", req.params.effort);
+    // Agent tools: only the WAR ROOM MCP proxy is loaded (strict config), so every
+    // call goes through WAR ROOM's permissions and approvals.
+    const mcpFile = path.join(paths.cliSandbox, `mcp-${crypto.randomUUID()}.json`);
+    if (req.mcpProxyUrl) {
+      fs.writeFileSync(mcpFile, JSON.stringify({ mcpServers: { warroom: { type: "http", url: req.mcpProxyUrl } } }), "utf8");
+      args.push("--mcp-config", mcpFile, "--allowedTools", "mcp__warroom");
+    }
 
     const child = spawn(binaryPath(creds), args, {
       cwd: paths.cliSandbox,
@@ -147,6 +156,9 @@ export const claudeCliAdapter: ProviderAdapter = {
     let buffer = "";
     let rateLimit: Record<string, unknown> | null = null;
     let sawResult = false;
+    // With tools, the CLI runs several model turns; separate their text like the API adapters do.
+    let separateNext = false;
+    let emittedText = false;
 
     const push = (e: StreamEvent) => {
       queue.push(e);
@@ -161,7 +173,12 @@ export const claudeCliAdapter: ProviderAdapter = {
     const handleLine = (line: string) => {
       const parsed = parseCliLine(line);
       if (!parsed) return;
-      if (parsed.kind === "text") push({ type: "text", delta: parsed.delta });
+      if (parsed.kind === "text") {
+        if (separateNext && emittedText) push({ type: "text", delta: "\n\n" });
+        separateNext = false;
+        emittedText = true;
+        push({ type: "text", delta: parsed.delta });
+      } else if (parsed.kind === "message_start") separateNext = true;
       else if (parsed.kind === "rate_limit") rateLimit = parsed.info;
       else if (parsed.kind === "result") {
         sawResult = true;
@@ -240,6 +257,7 @@ export const claudeCliAdapter: ProviderAdapter = {
       req.signal?.removeEventListener("abort", onAbort);
       if (child.exitCode === null) child.kill();
       fs.rm(promptFile, { force: true }, () => {});
+      fs.rm(mcpFile, { force: true }, () => {});
     }
   },
 

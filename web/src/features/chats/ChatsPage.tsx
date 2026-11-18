@@ -276,6 +276,7 @@ function ChatView({ id }: { id: string }) {
             running={stream.running}
             onStop={stream.stop}
             scope={{ conversationId: id }}
+            improve={{ conversationId: id }}
             disabled={!conv.providerId || !conv.modelId}
             disabledReason="Choisissez un modèle pour cette conversation."
             onSend={(content, attachments) =>

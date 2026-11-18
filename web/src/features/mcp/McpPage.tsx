@@ -86,8 +86,8 @@ export default function McpPage() {
       <Card className="mb-5 flex items-start gap-2.5 px-4 py-3 text-xs text-fg-muted">
         <Info className="mt-0.5 size-4 shrink-0 text-accent" />
         <p>
-          Les agents ne déclenchent pas encore d'appels d'outils MCP automatiquement pendant les conversations ; les outils peuvent être testés manuellement ici.
-          Les permissions et confirmations sont déjà appliquées côté serveur.
+          Un agent utilise les outils d'un serveur pendant ses conversations s'il a la permission « Utiliser MCP » et si le serveur lui est attribué (réglages de l'agent).
+          Les outils marqués sensibles demandent votre accord dans la conversation avant chaque exécution. Chaque outil exposé ajoute sa définition au prompt de l'agent : n'attribuez que les serveurs utiles.
         </p>
       </Card>
 

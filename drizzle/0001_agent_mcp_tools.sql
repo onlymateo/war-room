@@ -1,0 +1,1 @@
+ALTER TABLE `agents` ADD `mcp_tools` text DEFAULT '{}' NOT NULL;

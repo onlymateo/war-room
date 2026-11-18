@@ -16,6 +16,8 @@ import { projectRoutes } from "./projects/routes";
 import { systemRoutes } from "./system/routes";
 import { skillRoutes } from "./skills/routes";
 import { mcpRoutes } from "./mcp/routes";
+import { mcpProxyRoutes } from "./mcp/proxy";
+import { promptRoutes } from "./prompt/routes";
 import { memoryRoutes } from "./memory/routes";
 import { BudgetExceededError } from "./usage/budget";
 import { connectEnabledServers } from "./mcp/manager";
@@ -45,6 +47,8 @@ app.onError((err, c) => {
 
 const api = new Hono();
 api.route("/", systemRoutes);
+api.route("/", mcpProxyRoutes);
+api.route("/", promptRoutes);
 api.route("/", providerRoutes);
 api.route("/", chatRoutes);
 api.route("/", fileRoutes);

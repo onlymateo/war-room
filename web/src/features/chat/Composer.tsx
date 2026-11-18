@@ -1,16 +1,24 @@
 import { useRef, useState, type ReactNode, type KeyboardEvent, type DragEvent, type ClipboardEvent } from "react";
-import { Paperclip, ArrowUp, Square, X, FileText, Image as ImageIcon, Film, Loader2 } from "lucide-react";
+import { Paperclip, ArrowUp, Square, X, FileText, Image as ImageIcon, Film, Loader2, WandSparkles, Check } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { cn, fmtBytes } from "@/lib/utils";
+import { cn, fmtBytes, fmtTokens } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/primitives";
-import type { FileDTO } from "@shared/types";
+import { CostTag } from "@/components/domain";
+import type { FileDTO, UsageSummary } from "@shared/types";
 
 export function fileIcon(mime: string) {
   if (mime.startsWith("image/")) return <ImageIcon />;
   if (mime.startsWith("video/")) return <Film />;
   return <FileText />;
+}
+
+interface ImproveResult {
+  improved: string;
+  providerId: string;
+  modelId: string;
+  usage: UsageSummary;
 }
 
 export function Composer({
@@ -23,6 +31,7 @@ export function Composer({
   scope,
   toolbar,
   allowEmpty,
+  improve,
 }: {
   onSend: (content: string, attachments: FileDTO[]) => void | Promise<void>;
   onStop?: () => void;
@@ -33,13 +42,39 @@ export function Composer({
   scope?: { conversationId?: string; warRoomId?: string; projectId?: string };
   toolbar?: ReactNode;
   allowEmpty?: boolean;
+  /** Enables "Improve prompt" (cheap model rewrite) with this context. */
+  improve?: { conversationId?: string; warRoomId?: string; agentId?: string };
 }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<FileDTO[]>([]);
   const [uploading, setUploading] = useState(0);
   const [dragOver, setDragOver] = useState(false);
+  const [improving, setImproving] = useState(false);
+  const [suggestion, setSuggestion] = useState<ImproveResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const setTextAndResize = (value: string) => {
+    setText(value);
+    requestAnimationFrame(() => {
+      const el = taRef.current;
+      if (!el) return;
+      el.style.height = "";
+      el.style.height = `${Math.min(el.scrollHeight, 280)}px`;
+    });
+  };
+
+  const runImprove = async () => {
+    if (!improve || !text.trim()) return;
+    setImproving(true);
+    try {
+      setSuggestion(await api.post<ImproveResult>("/prompt/improve", { text, ...improve }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setImproving(false);
+    }
+  };
 
   const upload = async (list: FileList | File[]) => {
     const arr = Array.from(list);
@@ -124,6 +159,38 @@ export function Composer({
           ) : null}
         </div>
       ) : null}
+      {suggestion ? (
+        <div className="border-b border-border bg-accent-soft/50 px-3 py-2.5">
+          <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-muted">
+            <span className="flex items-center gap-1 font-medium text-fg">
+              <WandSparkles className="size-3.5 text-accent" /> Prompt amélioré
+            </span>
+            <span>{suggestion.modelId}</span>
+            <span className="tabular-nums">
+              {fmtTokens((suggestion.usage.inputTokens ?? 0) + (suggestion.usage.cacheReadTokens ?? 0) + (suggestion.usage.cacheWriteTokens ?? 0) || null, { compact: true })} ↑ ·{" "}
+              {fmtTokens(suggestion.usage.outputTokens, { compact: true })} ↓
+            </span>
+            <CostTag costUsd={suggestion.usage.costUsd} costKind={suggestion.usage.costKind} />
+          </div>
+          <div className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-surface px-3 py-2 text-[13px] leading-relaxed">{suggestion.improved}</div>
+          <div className="mt-2 flex gap-2">
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                setTextAndResize(suggestion.improved);
+                setSuggestion(null);
+                taRef.current?.focus();
+              }}
+            >
+              <Check /> Utiliser
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSuggestion(null)}>
+              Garder l'original
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <textarea
         ref={taRef}
         value={text}
@@ -146,6 +213,20 @@ export function Composer({
             <Paperclip />
           </Button>
         </Tooltip>
+        {improve ? (
+          <Tooltip content="Réécrire le message avec un modèle économique avant l'envoi (vous validez avant)">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void runImprove()}
+              disabled={disabled || improving || running || text.trim().length < 12}
+              aria-label="Améliorer le prompt"
+            >
+              {improving ? <Loader2 className="animate-spin" /> : <WandSparkles />}
+              <span className="hidden sm:inline">Améliorer</span>
+            </Button>
+          </Tooltip>
+        ) : null}
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">{toolbar}</div>
         {running ? (
           <Button variant="secondary" size="sm" onClick={onStop}>

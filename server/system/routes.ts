@@ -16,6 +16,8 @@ const SETTINGS_SCHEMA = {
   "context.maxHistoryTokens": z.number().int().min(2_000).max(500_000),
   "context.compressThresholdTokens": z.number().int().min(4_000).max(1_000_000),
   "orchestration.maxCallsPerRun": z.number().int().min(1).max(50),
+  "orchestration.maxToolRounds": z.number().int().min(1).max(30),
+  "optimizer.promptModel": z.object({ providerId: z.string(), modelId: z.string() }).nullable(),
   "optimizer.routingModel": z.object({ providerId: z.string(), modelId: z.string() }).nullable(),
   "optimizer.summaryModel": z.object({ providerId: z.string(), modelId: z.string() }).nullable(),
   "user.displayName": z.string().max(80),

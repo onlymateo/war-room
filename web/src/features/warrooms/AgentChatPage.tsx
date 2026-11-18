@@ -13,6 +13,7 @@ import { AgentAvatar, CostTag, modelLabel } from "@/components/domain";
 import { Composer } from "../chat/Composer";
 import { MessageItem, useStickToBottom } from "../chat/MessageList";
 import { useRunStream } from "../chat/useRunStream";
+import { ApprovalCards } from "../chat/ToolCalls";
 import { AgentEditor } from "./AgentEditor";
 import { useRoom } from "./shared";
 
@@ -85,10 +86,12 @@ export default function AgentChatPage() {
         </div>
         <div className="shrink-0 px-5 pb-5">
           <div className="mx-auto max-w-3xl">
+            <ApprovalCards approvals={stream.approvals} />
             <Composer
               running={stream.running}
               onStop={stream.stop}
               scope={{ warRoomId: id, conversationId: conv.data?.conversation.id }}
+              improve={{ conversationId: conv.data?.conversation.id, warRoomId: id, agentId }}
               placeholder={`Message à ${agent.name}…`}
               onSend={(content, attachments) =>
                 stream.run(`/agents/${agentId}/messages`, { content, attachmentIds: attachments.map((a) => a.id) }, () => {

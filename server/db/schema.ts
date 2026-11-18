@@ -109,6 +109,11 @@ export const agents = sqliteTable(
     params: json<AgentParams>("params").notNull().default({}),
     skills: json<string[]>("skills").notNull().default([]),
     mcpServers: json<string[]>("mcp_servers").notNull().default([]),
+    /**
+     * Per-server tool allowlist: { [mcpServerId]: toolNames[] }. A server with no
+     * entry exposes all its tools (backward compatible); an entry restricts to that list.
+     */
+    mcpTools: json<Record<string, string[]>>("mcp_tools").notNull().default({}),
     memory: text("memory").notNull().default(""),
     tokenLimit: integer("token_limit"),
     budgetUsd: real("budget_usd"),

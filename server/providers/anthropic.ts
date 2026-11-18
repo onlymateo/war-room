@@ -54,40 +54,72 @@ export const anthropicAdapter: ProviderAdapter = {
   async *stream(req: GenerateRequest, creds: ResolvedCredentials): AsyncIterable<StreamEvent> {
     const anthropic = client(creds);
     const useFallback = FALLBACK_MODELS.has(req.model);
+    const messages = toAnthropicMessages(req.messages);
+    const tools: Anthropic.Beta.BetaToolUnion[] | undefined = req.tools?.length
+      ? req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema as Anthropic.Beta.BetaTool.InputSchema }))
+      : undefined;
+    const maxRounds = req.tools?.length && req.runTool ? (req.maxToolRounds ?? 8) : 0;
+    let anyText = false;
     try {
-      const stream = anthropic.beta.messages.stream(
-        {
-          model: req.model,
-          max_tokens: req.params?.maxTokens ?? 32_000,
-          ...(req.system ? { system: req.system } : {}),
-          messages: toAnthropicMessages(req.messages),
-          // Automatic prompt caching: repeated prefixes (system prompt + history) are billed at the cache-read rate.
-          cache_control: { type: "ephemeral" },
-          ...(req.params?.effort ? { output_config: { effort: req.params.effort } } : {}),
-          ...(useFallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
-        },
-        { signal: req.signal },
-      );
+      // Tool loop: each round is one API call; tool results are sent back until the model stops asking.
+      for (let round = 0; ; round++) {
+        const stream = anthropic.beta.messages.stream(
+          {
+            model: req.model,
+            max_tokens: req.params?.maxTokens ?? 32_000,
+            ...(req.system ? { system: req.system } : {}),
+            messages,
+            ...(tools ? { tools } : {}),
+            // Automatic prompt caching: repeated prefixes (system prompt + history + earlier rounds) are billed at the cache-read rate.
+            cache_control: { type: "ephemeral" },
+            ...(req.params?.effort ? { output_config: { effort: req.params.effort } } : {}),
+            ...(useFallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
+          },
+          { signal: req.signal },
+        );
 
-      for await (const event of stream) {
-        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-          yield { type: "text", delta: event.delta.text };
+        let roundText = false;
+        for await (const event of stream) {
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+            if (anyText && !roundText) yield { type: "text", delta: "\n\n" };
+            roundText = true;
+            anyText = true;
+            yield { type: "text", delta: event.delta.text };
+          }
         }
+        const final = await stream.finalMessage();
+        yield {
+          type: "usage",
+          usage: {
+            inputTokens: final.usage.input_tokens,
+            outputTokens: final.usage.output_tokens,
+            cacheReadTokens: final.usage.cache_read_input_tokens ?? null,
+            cacheWriteTokens: final.usage.cache_creation_input_tokens ?? null,
+          },
+        };
+        if (final.stop_reason === "refusal") {
+          throw new ProviderError("The model declined this request (refusal).", "bad_request");
+        }
+        const toolUses = final.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+        if (final.stop_reason !== "tool_use" || toolUses.length === 0 || !req.runTool) {
+          yield { type: "done", stopReason: final.stop_reason ?? null, modelUsed: final.model };
+          return;
+        }
+        if (round >= maxRounds) {
+          yield { type: "text", delta: "\n\n_[WAR ROOM : limite de tours d'outils atteinte pour cette réponse.]_" };
+          yield { type: "done", stopReason: "tool_round_limit", modelUsed: final.model };
+          return;
+        }
+        // Send the full assistant content back unchanged (thinking blocks included), then the results.
+        messages.push({ role: "assistant", content: final.content as unknown as Anthropic.Beta.BetaContentBlockParam[] });
+        const results = await Promise.all(
+          toolUses.map(async (tu) => {
+            const r = await req.runTool!(tu.name, (tu.input ?? {}) as Record<string, unknown>);
+            return { type: "tool_result" as const, tool_use_id: tu.id, content: r.text, is_error: r.isError };
+          }),
+        );
+        messages.push({ role: "user", content: results });
       }
-      const final = await stream.finalMessage();
-      yield {
-        type: "usage",
-        usage: {
-          inputTokens: final.usage.input_tokens,
-          outputTokens: final.usage.output_tokens,
-          cacheReadTokens: final.usage.cache_read_input_tokens ?? null,
-          cacheWriteTokens: final.usage.cache_creation_input_tokens ?? null,
-        },
-      };
-      if (final.stop_reason === "refusal") {
-        throw new ProviderError("The model declined this request (refusal).", "bad_request");
-      }
-      yield { type: "done", stopReason: final.stop_reason ?? null, modelUsed: final.model };
     } catch (err) {
       throw mapAnthropicError(err);
     }

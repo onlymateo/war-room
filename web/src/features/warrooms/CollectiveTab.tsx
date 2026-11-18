@@ -13,6 +13,7 @@ import { AgentAvatar, modelLabel } from "@/components/domain";
 import { Composer } from "../chat/Composer";
 import { MessageItem, useStickToBottom } from "../chat/MessageList";
 import { useRunStream } from "../chat/useRunStream";
+import { ApprovalCards } from "../chat/ToolCalls";
 import { STATUS_LABEL, type RoomDetail } from "./shared";
 
 const MODES: { value: CollectiveMode; label: string; icon: React.ReactNode; hint: string }[] = [
@@ -182,10 +183,12 @@ export function CollectiveTab({ detail }: { detail: RoomDetail }) {
                 ))}
               </div>
             ) : null}
+            <ApprovalCards approvals={stream.approvals} />
             <Composer
               running={stream.running}
               onStop={stream.stop}
               scope={{ warRoomId: room.id }}
+              improve={{ conversationId: convId, warRoomId: room.id }}
               allowEmpty={mode === "synthesis"}
               disabled={needsSelection}
               disabledReason="Sélectionnez au moins un agent destinataire."

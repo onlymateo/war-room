@@ -9,6 +9,7 @@ import { AgentAvatar, UsageLine } from "@/components/domain";
 import { Badge, Tooltip } from "@/components/ui/primitives";
 import { Markdown } from "./Markdown";
 import { fileIcon } from "./Composer";
+import { ToolCallList } from "./ToolCalls";
 
 export interface Speaker {
   name: string;
@@ -92,6 +93,7 @@ export function MessageItem({ message, speaker, modelName, extra }: { message: M
             {message.meta.instruction}
           </div>
         ) : null}
+        {message.meta.toolCalls?.length ? <ToolCallList calls={message.meta.toolCalls} /> : null}
         {isUser ? (
           <div className="whitespace-pre-wrap text-[13.5px] leading-relaxed">{message.content}</div>
         ) : message.content ? (

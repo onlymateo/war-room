@@ -10,12 +10,25 @@ export interface ChatTurn {
   content: ContentPart[];
 }
 
+export interface ToolSpec {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
 export interface GenerateRequest {
   model: string;
   system?: string;
   messages: ChatTurn[];
   params?: AgentParams;
   signal?: AbortSignal;
+  /** API providers: tools the model may call; `runTool` executes them (permissions enforced by the caller). */
+  tools?: ToolSpec[];
+  runTool?: (name: string, args: Record<string, unknown>) => Promise<{ text: string; isError: boolean }>;
+  /** Max model round-trips caused by tool use in one reply. */
+  maxToolRounds?: number;
+  /** Claude Code CLI: URL of the WAR ROOM MCP proxy exposing this agent's tools. */
+  mcpProxyUrl?: string;
 }
 
 /** Usage exactly as reported by the provider; undefined/null means "not reported". */
@@ -32,6 +45,7 @@ export interface ProviderUsage {
 
 export type StreamEvent =
   | { type: "text"; delta: string }
+  /** Emitted once per model round-trip; the caller sums them. */
   | { type: "usage"; usage: ProviderUsage }
   | { type: "done"; stopReason: string | null; modelUsed?: string };
 

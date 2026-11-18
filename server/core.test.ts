@@ -8,6 +8,7 @@ import { toOpenAIMessages } from "./providers/openai-compatible";
 import { messagesToTurns, normalizeTurns } from "./memory/context";
 import { adjustTier, pickModelFromList } from "./usage/optimizer";
 import { matchSkill, parseFrontMatter, type SkillInfo } from "./skills/inventory";
+import { isToolAllowed } from "./mcp/tools";
 import type { schema } from "./db/client";
 
 const claudePrice = { inputPrice: 4, outputPrice: 20, cacheReadPrice: 0.2, cacheWritePrice: 5 };
@@ -196,6 +197,17 @@ describe("cost optimizer", () => {
     expect(pickModelFromList(models, ["p1", "p2"], "economy", "p1")?.modelId).toBe("d");
     expect(pickModelFromList(models, ["p2"], "premium", "p1")?.modelId).toBe("b");
     expect(pickModelFromList(models, [], "economy", "p1")).toBeNull();
+  });
+});
+
+describe("per-agent MCP tool allowlist", () => {
+  it("allows every tool of a server without an entry, only listed tools otherwise", () => {
+    expect(isToolAllowed({}, "srv", "anything")).toBe(true);
+    expect(isToolAllowed(undefined, "srv", "anything")).toBe(true);
+    expect(isToolAllowed({ srv: ["script_read"] }, "srv", "script_read")).toBe(true);
+    expect(isToolAllowed({ srv: ["script_read"] }, "srv", "save_place")).toBe(false);
+    expect(isToolAllowed({ srv: [] }, "srv", "script_read")).toBe(false);
+    expect(isToolAllowed({ other: [] }, "srv", "script_read")).toBe(true);
   });
 });
 

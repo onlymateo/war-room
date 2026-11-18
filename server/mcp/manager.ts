@@ -126,6 +126,10 @@ export async function callTool(opts: { serverId: string; tool: string; args: Rec
     const agent = await db.query.agents.findFirst({ where: eq(schema.agents.id, opts.agentId) });
     if (!agent?.permissions.useMcp) throw new McpPermissionError(`${agent?.name ?? "This agent"} is not allowed to use MCP tools.`);
     if (!agent.mcpServers.includes(opts.serverId)) throw new McpPermissionError(`${agent.name} has no access to ${row.name}.`);
+    const allowed = agent.mcpTools?.[opts.serverId];
+    if (allowed !== undefined && !allowed.includes(opts.tool)) {
+      throw new McpPermissionError(`${agent.name} is not allowed to use ${row.name} › ${opts.tool}.`);
+    }
   }
   if (row.sensitiveTools.includes(opts.tool) && !opts.confirmed) {
     throw new McpPermissionError(`"${opts.tool}" is marked sensitive and needs your confirmation.`);

@@ -22,6 +22,8 @@
   - plafonds d'agents et d'appels par message.
 - **Skills** : inventaire réel (Skills Claude Code de l'utilisateur, marketplace de plugins, Skills WAR ROOM), installation dans WAR ROOM (confirmation requise pour une source non vérifiée), création de Skills personnalisés, injection dans le prompt des agents, recommandations comparées à l'inventaire.
 - **MCP** : ajout de serveurs STDIO et HTTP, connexion et déconnexion, outils, ressources, prompts, journaux, test manuel des outils, outils sensibles, attribution aux agents.
+- **Appels d'outils MCP par les agents** : boucle d'outils pour l'API Anthropic et les API compatibles OpenAI ; pour Claude Code, WAR ROOM expose les outils de l'agent via un serveur MCP local temporaire, si bien que tous les appels passent par les mêmes contrôles. Permissions vérifiées à chaque appel, accord humain pour les outils sensibles (refus automatique après 10 min), résultats tronqués à 20 000 caractères, plafonds de tours et d'appels, appels affichés dans les messages et le journal. Chaque agent peut être limité à une partie des outils d'un serveur (cases à cocher avec coût estimé en tokens) ; lors d'une nouvelle attribution, seuls les outils non sensibles sont cochés par défaut.
+- **Amélioration des prompts** : bouton « Améliorer » dans chaque conversation ; réécriture par un modèle économique avec un court extrait de contexte, coût affiché, validation avant envoi.
 - **Projets** : liste, détail, vues Synthèse, Kanban, Liste et Timeline, décisions, rattachement de War Rooms.
 - **Fichiers et mémoire** : upload, aperçu, téléchargement, tags, extraction de texte (texte, code, CSV, JSON, PDF, DOCX), mémoire structurée par portée.
 - **Interface** : thème sombre et clair, barre latérale repliable, recherche globale (Ctrl K), raccourcis, toasts, états vides, gestion des erreurs par page.
@@ -30,7 +32,8 @@
 
 | Fonctionnalité | Situation actuelle | Prochaine étape |
 |---|---|---|
-| Appels d'outils MCP **automatiques** par les agents pendant une conversation | Outils testables manuellement, permissions déjà appliquées côté serveur | Boucle `tool_use` dans les adaptateurs, avec une carte de confirmation dans le chat pour les outils sensibles |
+| Outils MCP dans les chats indépendants | Réservés aux agents des War Rooms | Choix de serveurs MCP par conversation |
+| Images renvoyées par un outil MCP | Signalées au modèle mais non transmises | Transmission aux modèles qui acceptent les images |
 | RAG vectoriel | Recherche par mots-clés, documents envoyés en texte | Embeddings et colonnes vecteur libSQL |
 | Injection automatique des mémoires structurées (page Mémoire) | Seules la mémoire commune de la War Room, la mémoire de chaque agent et les résumés sont injectés | Récupération sélective par portée |
 | Détection de contradictions dans la mémoire | — | Passe de vérification par un modèle économique |

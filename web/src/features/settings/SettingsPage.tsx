@@ -16,6 +16,7 @@ const DEFAULTS = {
   "context.maxHistoryTokens": 24_000,
   "context.compressThresholdTokens": 32_000,
   "orchestration.maxCallsPerRun": 12,
+  "orchestration.maxToolRounds": 8,
 };
 
 function useSaveSetting() {
@@ -196,6 +197,21 @@ export default function SettingsPage() {
                   min={1}
                   suffix="appels"
                 />
+              </Row>
+              <Row
+                title="Tours d'outils MCP maximum par réponse"
+                description={`Nombre maximum d'allers-retours modèle ↔ outils pour une même réponse d'agent (API). Défaut : ${DEFAULTS["orchestration.maxToolRounds"]}.`}
+              >
+                <SettingInput
+                  settingKey="orchestration.maxToolRounds"
+                  value={s["orchestration.maxToolRounds"] ?? DEFAULTS["orchestration.maxToolRounds"]}
+                  type="number"
+                  min={1}
+                  suffix="tours"
+                />
+              </Row>
+              <Row title="Modèle d'amélioration des prompts" description="Utilisé par le bouton « Améliorer » des conversations. Par défaut : le modèle économique le moins cher disponible.">
+                <ModelSetting settingKey="optimizer.promptModel" value={(s["optimizer.promptModel"] as ModelRef) ?? null} />
               </Row>
             </div>
           </Card>

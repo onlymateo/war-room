@@ -80,6 +80,33 @@ export interface MessageMeta {
   /** Attachments that could not be sent to the model, with the reason. */
   skippedAttachments?: { id: string; name: string; reason: string }[];
   usage?: UsageSummary;
+  /** MCP tool calls made while producing this message. */
+  toolCalls?: ToolCallRecord[];
+}
+
+export interface ToolCallRecord {
+  id: string;
+  serverId: string;
+  serverName: string;
+  tool: string;
+  args: Record<string, unknown>;
+  status: "running" | "awaiting_approval" | "done" | "error" | "denied";
+  /** Truncated text of the result (or the error) as given back to the model. */
+  resultPreview?: string;
+  approvalId?: string;
+  startedAt: number;
+  durationMs?: number;
+}
+
+export interface ToolApprovalRequest {
+  approvalId: string;
+  messageId: string | null;
+  agentId: string | null;
+  agentName: string | null;
+  serverName: string;
+  tool: string;
+  args: Record<string, unknown>;
+  requestedAt: number;
 }
 
 export interface UsageSummary {
@@ -103,6 +130,9 @@ export type RunEvent =
   | { type: "plan"; message: MessageDTO }
   | { type: "notice"; level: "info" | "warning" | "error"; text: string }
   | { type: "error"; error: string; messageId?: string }
+  | { type: "tool_call"; messageId: string | null; call: ToolCallRecord }
+  | { type: "tool_approval"; request: ToolApprovalRequest }
+  | { type: "tool_approval_resolved"; approvalId: string; approved: boolean }
   | { type: "run_done" };
 
 export interface MessageDTO {
