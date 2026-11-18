@@ -1,35 +1,35 @@
-# Fournisseurs, abonnements et API
+# Providers, subscriptions and APIs
 
-WAR ROOM n'utilise que des accès officiels. Aucune authentification n'est simulée et aucun jeton d'abonnement n'est extrait ou réutilisé.
+WAR ROOM only uses official access methods. No authentication is faked, and no subscription token is extracted or reused.
 
 ## Claude
 
-| Accès | Ce que c'est | Dans WAR ROOM |
+| Access | What it is | In WAR ROOM |
 |---|---|---|
-| **Abonnement Claude Pro/Max** | Donne accès à claude.ai, aux applications et à **Claude Code**. N'inclut **pas** l'API Anthropic. | Fournisseur **« Claude Code »** : WAR ROOM lance la commande officielle `claude -p --output-format stream-json` installée sur votre machine. L'authentification est celle que vous avez faite dans Claude Code ; WAR ROOM ne lit jamais vos identifiants. L'usage compte dans les limites de votre forfait (fenêtres de 5 h et hebdomadaire), qui s'affichent sur le Dashboard quand Claude Code les remonte. |
-| **API Anthropic** | Clé `sk-ant-…` de console.anthropic.com, facturée au token. | Fournisseur **« Anthropic API »**. Streaming via le SDK officiel, cache de prompt automatique, tokens et coût exacts. |
+| **Claude Pro/Max subscription** | Gives access to claude.ai, the apps and **Claude Code**. Does **not** include the Anthropic API. | **"Claude Code"** provider: WAR ROOM runs the official `claude -p --output-format stream-json` command installed on your machine. Authentication is the one you set up in Claude Code; WAR ROOM never reads your credentials. Usage counts toward your plan's limits (5-hour and weekly windows), which WAR ROOM tracks from what Claude Code reports. |
+| **Anthropic API** | An `sk-ant-…` key from console.anthropic.com, billed per token. | **"Anthropic API"** provider. Streaming through the official SDK, automatic prompt caching, exact tokens and cost. |
 
-Limites du bridge Claude Code :
+Limitations of the Claude Code bridge:
 
-- Les pièces jointes images et PDF ne sont pas transmises : seul le texte extrait l'est, et l'interface le signale.
-- L'historique est envoyé sous forme de transcription à chaque appel.
-- Si `ANTHROPIC_API_KEY` est défini dans votre environnement, Claude Code facturerait l'API. WAR ROOM retire cette variable de l'environnement de la CLI, sauf si vous désactivez l'option « Forcer l'abonnement ».
+- Image and PDF attachments are not forwarded: only extracted text is, and the interface says so.
+- The history is sent as a transcript on every call.
+- If `ANTHROPIC_API_KEY` is set in your environment, Claude Code would bill the API. WAR ROOM removes that variable from the CLI's environment, unless you turn off the "Force subscription" option.
 
-## Autres fournisseurs
+## Other providers
 
-| Fournisseur | Accès officiel utilisé | Abonnement grand public |
+| Provider | Official access used | Consumer subscription |
 |---|---|---|
-| OpenAI | Clé API (platform.openai.com) | ChatGPT Plus/Pro n'inclut pas l'API. La CLI Codex accepte une connexion ChatGPT : un bridge semblable à Claude Code est possible plus tard, mais il n'est **pas implémenté**. |
-| Google Gemini | Clé AI Studio (offre gratuite limitée), endpoint compatible OpenAI | Les abonnements Google AI ne fournissent pas de clé API. |
-| Mistral | Clé La Plateforme | Le Chat Pro n'inclut pas l'API. |
-| DeepSeek | Clé API prépayée | — |
-| xAI | Clé API | SuperGrok / X Premium n'incluent pas l'API. |
-| OpenRouter | Clé API (crédits prépayés) | Le coût réel est renvoyé par OpenRouter et utilisé tel quel. |
-| Ollama | Serveur local `localhost:11434` | Gratuit. |
+| OpenAI | API key (platform.openai.com) | ChatGPT Plus/Pro does not include the API. The Codex CLI accepts a ChatGPT sign-in: a bridge similar to Claude Code is possible later, but it is **not implemented**. |
+| Google Gemini | AI Studio key (limited free tier), OpenAI-compatible endpoint | Google AI subscriptions do not provide an API key. |
+| Mistral | La Plateforme key | Le Chat Pro does not include the API. |
+| DeepSeek | Prepaid API key | — |
+| xAI | API key | SuperGrok / X Premium do not include the API. |
+| OpenRouter | API key (prepaid credits) | The actual cost is returned by OpenRouter and used as is. |
+| Ollama | Local server at `localhost:11434` | Free. |
 
-Pour ces fournisseurs, les prix des modèles ne sont **pas** préremplis : vérifiez-les et saisissez-les sur la page Models & Providers. Sans prix, le coût affiché reste « inconnu ». Les prix Claude préremplis viennent de la grille Anthropic au 3 novembre 2026.
+For these providers, model prices are **not** prefilled: check them and enter them on the Models & Providers page. Without a price, the cost shown stays "unknown". Prefilled Claude prices come from Anthropic's price list as of November 3, 2026.
 
-## Ajouter un fournisseur
+## Adding a provider
 
-1. Ajouter sa définition dans `server/providers/catalog.ts`.
-2. S'il expose une API compatible OpenAI, rien d'autre à faire. Sinon, implémenter `ProviderAdapter` (`server/providers/types.ts`) et l'enregistrer dans `server/providers/registry.ts`.
+1. Add its definition in `server/providers/catalog.ts`.
+2. If it exposes an OpenAI-compatible API, nothing else is needed. Otherwise, implement `ProviderAdapter` (`server/providers/types.ts`) and register it in `server/providers/registry.ts`.
